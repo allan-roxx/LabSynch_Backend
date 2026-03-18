@@ -1,0 +1,7 @@
+-r base.txt
+
+# Production server
+gunicorn>=22.0,<23.0
+
+# Static file serving
+whitenoise>=6.6,<7.0
