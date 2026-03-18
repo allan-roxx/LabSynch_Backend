@@ -29,6 +29,8 @@ urlpatterns = [
 
     # App URLs
     path("api/auth/", include("apps.authentication.urls")),
+    path("api/", include("apps.equipment.urls")),
+    path("api/", include("apps.bookings.urls")),
 ]
 
 from django.conf import settings
