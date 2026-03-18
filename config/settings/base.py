@@ -321,7 +321,16 @@ LOGGING = {
 
 
 # =============================================================================
-# Default primary key field type
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# =============================================================================
+# M-Pesa Integration
 # =============================================================================
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+MPESA_ENVIRONMENT_URL = env("MPESA_ENVIRONMENT_URL", default="https://sandbox.safaricom.co.ke")
+MPESA_CONSUMER_KEY = env("MPESA_CONSUMER_KEY", default="")
+MPESA_CONSUMER_SECRET = env("MPESA_CONSUMER_SECRET", default="")
+MPESA_SHORTCODE = env("MPESA_SHORTCODE", default="174379")
+MPESA_PASSKEY = env("MPESA_PASSKEY", default="bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919")
+MPESA_CALLBACK_URL = env("MPESA_CALLBACK_URL", default="https://api.labsynch.co.ke/api/payments/mpesa-callback/")
+
