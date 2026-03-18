@@ -20,6 +20,11 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 X_FRAME_OPTIONS = "DENY"
 
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    "https://your-frontend.com",
+    "https://www.your-frontend.com",
+]
 
 # =============================================================================
 # Static files — WhiteNoise
