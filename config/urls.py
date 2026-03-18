@@ -32,6 +32,9 @@ urlpatterns = [
     path("api/", include("apps.equipment.urls")),
     path("api/", include("apps.bookings.urls")),
     path("api/", include("apps.payments.urls")),
+    path("api/", include("apps.issuances.urls")),
+    path("api/", include("apps.damages.urls")),
+    path("api/", include("apps.maintenance.urls")),
 ]
 
 from django.conf import settings
