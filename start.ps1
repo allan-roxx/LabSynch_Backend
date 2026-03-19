@@ -5,7 +5,7 @@ Write-Host "==================================================" -ForegroundColor
 Write-Host ""
 
 Write-Host "1. Activate Virtual Environment:" -ForegroundColor Yellow
-Write-Host "   ..\.venv\Scripts\Activate" -ForegroundColor Green
+Write-Host "   .venv\Scripts\Activate" -ForegroundColor Green
 Write-Host "   (Activates the isolated Python environment)"
 Write-Host ""
 
