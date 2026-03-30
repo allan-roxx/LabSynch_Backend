@@ -35,6 +35,7 @@ urlpatterns = [
     path("api/", include("apps.issuances.urls")),
     path("api/", include("apps.damages.urls")),
     path("api/", include("apps.maintenance.urls")),
+    path("api/", include("apps.audit.urls")),
 ]
 
 from django.conf import settings

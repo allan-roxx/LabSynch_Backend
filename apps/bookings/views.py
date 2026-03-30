@@ -23,6 +23,8 @@ class BookingViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Booking.objects.none()
         queryset = Booking.objects.select_related("school_profile", "school_profile__user").prefetch_related(
             "booking_items", "booking_items__equipment", "booking_items__equipment__category"
         )

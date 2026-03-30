@@ -25,6 +25,8 @@ class EquipmentIssuanceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return EquipmentIssuance.objects.none()
         queryset = EquipmentIssuance.objects.select_related("booking", "issued_by", "received_by")
         if self.request.user.user_type == "ADMIN":
             return queryset
@@ -70,6 +72,8 @@ class EquipmentReturnViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return EquipmentReturn.objects.none()
         queryset = EquipmentReturn.objects.select_related("booking", "received_by", "returned_by")
         if self.request.user.user_type == "ADMIN":
             return queryset

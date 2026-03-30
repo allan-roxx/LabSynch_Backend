@@ -9,6 +9,8 @@ from apps.bookings.models import Booking, BookingStatus
 from apps.equipment.models import Equipment
 from rest_framework.exceptions import ValidationError
 from .models import EquipmentIssuance, EquipmentReturn
+from apps.audit.services import log_action
+from apps.audit.models import AuditLog
 
 
 @transaction.atomic
@@ -39,7 +41,14 @@ def issue_equipment(
     
     booking.status = BookingStatus.ISSUED
     booking.save(update_fields=["status", "updated_at"])
-    
+
+    log_action(
+        action=AuditLog.Action.ISSUE,
+        instance=issuance,
+        actor=issued_by,
+        changes={"booking": str(booking.id), "status": BookingStatus.ISSUED},
+    )
+
     return issuance
 
 
@@ -73,7 +82,14 @@ def return_equipment(
     
     booking.status = BookingStatus.COMPLETED
     booking.save(update_fields=["status", "updated_at"])
-    
+
+    log_action(
+        action=AuditLog.Action.RETURN,
+        instance=return_record,
+        actor=received_by,
+        changes={"booking": str(booking.id), "has_damage": has_damage, "status": BookingStatus.COMPLETED},
+    )
+
     # Restore quantity to available pool
     equipment_ids = [str(item.equipment_id) for item in booking.booking_items.all()]
     equipment_ids.sort()  # Prevents deadlocks

@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 
 from apps.bookings.models import Booking
 from rest_framework.exceptions import ValidationError
@@ -24,6 +25,8 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PaymentReadSerializer
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Payment.objects.none()
         queryset = Payment.objects.select_related("booking")
         if self.request.user.user_type == "ADMIN":
             return queryset
@@ -62,6 +65,7 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
 
+@extend_schema(exclude=True)
 class MPesaCallbackView(APIView):
     """
     Public webhook endpoint for Safaricom Daraja API.

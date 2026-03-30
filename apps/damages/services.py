@@ -8,6 +8,8 @@ from apps.bookings.models import BookingItem
 from apps.issuances.models import EquipmentReturn
 from rest_framework.exceptions import ValidationError
 from .models import DamageReport, ResolutionStatus
+from apps.audit.services import log_action
+from apps.audit.models import AuditLog
 
 
 @transaction.atomic
@@ -38,7 +40,14 @@ def create_damage_report(
         description=description,
         photo_urls=photo_urls or []
     )
-    
+
+    log_action(
+        action=AuditLog.Action.CREATE,
+        instance=report,
+        actor=reported_by,
+        changes={"severity": severity, "quantity_damaged": quantity_damaged},
+    )
+
     return report
 
 
@@ -59,4 +68,11 @@ def resolve_damage_report(
         damage_report.repair_cost = repair_cost
         
     damage_report.save(update_fields=["resolution_status", "repair_cost", "updated_at"])
+
+    log_action(
+        action=AuditLog.Action.RESOLVE,
+        instance=damage_report,
+        changes={"resolution_status": resolution_status, "repair_cost": str(repair_cost) if repair_cost else None},
+    )
+
     return damage_report

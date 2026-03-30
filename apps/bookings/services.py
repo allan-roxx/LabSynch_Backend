@@ -13,6 +13,8 @@ from django.utils import timezone
 from apps.equipment.models import Equipment, PricingRule
 from apps.users.models import User, SchoolProfile
 from .models import Booking, BookingItem, BookingStatus
+from apps.audit.services import log_action
+from apps.audit.models import AuditLog
 
 
 def get_available_quantity(equipment_id: str, start_date: date, end_date: date) -> int:
@@ -165,6 +167,13 @@ def create_booking(
         bi.booking = booking
     BookingItem.objects.bulk_create(booking_items_to_create)
 
+    log_action(
+        action=AuditLog.Action.CREATE,
+        instance=booking,
+        actor=user,
+        changes={"booking_reference": booking.booking_reference, "status": booking.status},
+    )
+
     return booking
 
 
@@ -183,6 +192,13 @@ def cancel_booking(booking: Booking, user: User) -> Booking:
 
     booking.status = BookingStatus.CANCELLED
     booking.save(update_fields=["status", "updated_at"])
+
+    log_action(
+        action=AuditLog.Action.CANCEL,
+        instance=booking,
+        actor=user,
+        changes={"status": ["PENDING/CONFIRMED", BookingStatus.CANCELLED]},
+    )
 
     # Restore quantities
     equipment_ids = [str(item.equipment_id) for item in booking.booking_items.all()]

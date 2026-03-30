@@ -5,3 +5,4 @@ __pycache__
 .env.example
 .env.prod
 db.sqlite3
+.pytest_cache

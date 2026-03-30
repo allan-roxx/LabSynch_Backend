@@ -71,8 +71,6 @@ LOCAL_APPS = [
     "apps.maintenance",
     "apps.notifications",
     "apps.audit",
-    "apps.reports",
-    "apps.settings_app",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -207,6 +205,13 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Laboratory Equipment Rental and Management Platform API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "BookingStatusEnum": "apps.bookings.models.BookingStatus",
+        "PaymentStatusEnum": "apps.payments.models.PaymentStatus",
+        "MaintenanceStatusEnum": "apps.maintenance.models.MaintenanceStatus",
+        "ResolutionStatusEnum": "apps.damages.models.ResolutionStatus",
+        "AccountStatusEnum": "apps.users.models.AccountStatus",
+    },
 }
 
 

@@ -8,6 +8,8 @@ from django.utils import timezone
 from apps.equipment.models import Equipment
 from rest_framework.exceptions import ValidationError
 from .models import MaintenanceSchedule, MaintenanceStatus
+from apps.audit.services import log_action
+from apps.audit.models import AuditLog
 
 
 @transaction.atomic
@@ -28,6 +30,13 @@ def create_maintenance_schedule(
         scheduled_date=scheduled_date,
         notes=notes
     )
+
+    log_action(
+        action=AuditLog.Action.CREATE,
+        instance=schedule,
+        changes={"equipment": str(equipment.id), "maintenance_type": maintenance_type, "scheduled_date": str(scheduled_date)},
+    )
+
     return schedule
 
 
@@ -63,5 +72,11 @@ def update_maintenance_status(
             "status", "completed_date", "technician_name", "cost", "notes", "updated_at"
         ]
     )
-    
+
+    log_action(
+        action=AuditLog.Action.UPDATE,
+        instance=schedule,
+        changes={"status": status, "technician_name": technician_name, "cost": str(cost) if cost else None},
+    )
+
     return schedule
