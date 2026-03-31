@@ -174,6 +174,9 @@ def create_booking(
         changes={"booking_reference": booking.booking_reference, "status": booking.status},
     )
 
+    from apps.notifications.tasks import send_booking_confirmation
+    send_booking_confirmation.delay(str(booking.id))
+
     return booking
 
 

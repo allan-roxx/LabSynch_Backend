@@ -10,6 +10,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -225,6 +226,12 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "Africa/Nairobi"
+CELERY_BEAT_SCHEDULE = {
+    "send-overdue-alerts-daily": {
+        "task": "notifications.send_overdue_alerts",
+        "schedule": crontab(hour=8, minute=0),  # 08:00 Africa/Nairobi
+    },
+}
 
 
 # =============================================================================

@@ -49,6 +49,9 @@ def issue_equipment(
         changes={"booking": str(booking.id), "status": BookingStatus.ISSUED},
     )
 
+    from apps.notifications.tasks import send_equipment_issued_notification
+    send_equipment_issued_notification.delay(str(issuance.id))
+
     return issuance
 
 

@@ -21,6 +21,14 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 
 # =============================================================================
+# Celery — run tasks synchronously in development (no broker needed)
+# =============================================================================
+
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = False
+
+
+# =============================================================================
 # Django Debug Toolbar
 # =============================================================================
 

@@ -49,3 +49,65 @@ class SchoolProfileFactory(factory.django.DjangoModelFactory):
     contact_designation = "Head of Science"
     credit_limit = 0
     account_status = AccountStatus.ACTIVE
+
+
+# ---------------------------------------------------------------------------
+# Equipment factories
+# ---------------------------------------------------------------------------
+
+from datetime import date, timedelta
+from decimal import Decimal
+
+from apps.bookings.models import Booking, BookingStatus
+from apps.equipment.models import Equipment, EquipmentCategory
+from apps.payments.models import Payment, PaymentMethod, PaymentStatus
+
+
+class EquipmentCategoryFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = EquipmentCategory
+
+    category_name = factory.Sequence(lambda n: f"Test Category {n}")
+    description = "Test category"
+    display_order = factory.Sequence(lambda n: n)
+
+
+class EquipmentFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Equipment
+
+    category = factory.SubFactory(EquipmentCategoryFactory)
+    equipment_name = factory.Sequence(lambda n: f"Equipment {n}")
+    equipment_code = factory.Sequence(lambda n: f"EQ-{n:04d}")
+    description = "Test equipment"
+    total_quantity = 10
+    available_quantity = 10
+    unit_price_per_day = Decimal("500.00")
+    condition = "GOOD"
+    is_active = True
+
+
+class BookingFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Booking
+
+    booking_reference = factory.Sequence(lambda n: f"BK-2026-{n:04d}")
+    school_profile = factory.SubFactory(SchoolProfileFactory)
+    pickup_date = factory.LazyFunction(lambda: date.today() + timedelta(days=1))
+    return_date = factory.LazyFunction(lambda: date.today() + timedelta(days=5))
+    status = BookingStatus.PENDING
+    total_amount = Decimal("5000.00")
+    special_instructions = ""
+
+
+class PaymentFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Payment
+
+    transaction_ref = factory.Sequence(lambda n: f"TXN-2026-{n:04d}")
+    booking = factory.SubFactory(BookingFactory, status=BookingStatus.PAID)
+    amount_paid = Decimal("5000.00")
+    payment_method = PaymentMethod.MPESA
+    payment_status = PaymentStatus.SUCCESS
+    mpesa_transaction_id = factory.Sequence(lambda n: f"MPESA{n:08d}")
+    mpesa_phone_number = "254700000000"

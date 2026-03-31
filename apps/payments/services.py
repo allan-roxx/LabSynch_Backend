@@ -170,8 +170,11 @@ def process_mpesa_callback(payload: dict):
             booking = payment.booking
             booking.status = BookingStatus.PAID
             booking.save(update_fields=["status", "updated_at"])
-            
+
             logger.info(f"Booking {booking.booking_reference} marked PAID via M-Pesa tx {payment.mpesa_transaction_id}")
+
+            from apps.notifications.tasks import send_payment_receipt
+            send_payment_receipt.delay(str(payment.id))
             
         else:
             # ResultCode != 0 means cancelled, insufficient funds, timeout, etc.
