@@ -34,6 +34,11 @@ Write-Host "   python -m pytest" -ForegroundColor Green
 Write-Host "   (Runs the automated test suite)"
 Write-Host ""
 
+Write-Host "7. Seed Database:" -ForegroundColor Yellow
+Write-Host "   python manage.py seed_data" -ForegroundColor Green
+Write-Host "   (Seeds the database with initial data from a fixture file)"
+Write-Host ""
+
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "Usage: Just copy/paste any of the green commands and press Enter."
 Write-Host ""
