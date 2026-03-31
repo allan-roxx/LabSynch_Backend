@@ -83,7 +83,7 @@ class UserResponseSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
-    def get_school_profile(self, obj):
+    def get_school_profile(self, obj) -> dict | None:
         if obj.user_type != "SCHOOL":
             return None
         try:

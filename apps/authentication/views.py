@@ -7,6 +7,7 @@ standard envelope format from common/utils.py.
 
 import logging
 
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
@@ -34,6 +35,12 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(
+    request=RegisterSerializer,
+    responses={201: UserResponseSerializer},
+    summary="Register a new school account",
+    tags=["auth"],
+)
 class RegisterView(APIView):
     """
     POST /api/auth/register/
@@ -57,6 +64,12 @@ class RegisterView(APIView):
         )
 
 
+@extend_schema(
+    request=EmailVerificationSerializer,
+    responses={200: UserResponseSerializer},
+    summary="Verify email address",
+    tags=["auth"],
+)
 class EmailVerificationView(APIView):
     """
     POST /api/auth/verify-email/
@@ -82,6 +95,12 @@ class EmailVerificationView(APIView):
         )
 
 
+@extend_schema(
+    request=LoginSerializer,
+    responses={200: UserResponseSerializer},
+    summary="Login — returns access + refresh JWT tokens plus user data",
+    tags=["auth"],
+)
 class LoginView(APIView):
     """
     POST /api/auth/login/
@@ -110,6 +129,12 @@ class LoginView(APIView):
         )
 
 
+@extend_schema(
+    request=LogoutSerializer,
+    responses={200: OpenApiResponse(description="Logged out successfully.")},
+    summary="Logout — blacklists the refresh token",
+    tags=["auth"],
+)
 class LogoutView(APIView):
     """
     POST /api/auth/logout/
@@ -129,6 +154,12 @@ class LogoutView(APIView):
         return success_response(message="Logged out successfully.")
 
 
+@extend_schema(
+    request=PasswordResetRequestSerializer,
+    responses={200: OpenApiResponse(description="Reset email sent if account exists.")},
+    summary="Request password reset email",
+    tags=["auth"],
+)
 class PasswordResetRequestView(APIView):
     """
     POST /api/auth/password-reset/
@@ -150,6 +181,12 @@ class PasswordResetRequestView(APIView):
         )
 
 
+@extend_schema(
+    request=PasswordResetConfirmSerializer,
+    responses={200: OpenApiResponse(description="Password reset successfully.")},
+    summary="Confirm password reset with uid + token",
+    tags=["auth"],
+)
 class PasswordResetConfirmView(APIView):
     """
     POST /api/auth/password-reset-confirm/

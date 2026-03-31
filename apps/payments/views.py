@@ -32,6 +32,13 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
             return queryset
         return queryset.filter(booking__school_profile__user=self.request.user)
 
+    @extend_schema(
+        request=STKPushRequestSerializer,
+        responses={
+            201: PaymentReadSerializer,
+        },
+        summary="Initiate M-Pesa STK push to phone",
+    )
     @action(detail=False, methods=["post"])
     def mpesa_stk_push(self, request):
         """

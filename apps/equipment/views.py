@@ -93,7 +93,7 @@ class EquipmentViewSet(viewsets.ModelViewSet):
         return EquipmentWriteSerializer
 
     def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
+        if self.action in ["list", "retrieve", "availability"]:
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminUser()]
 

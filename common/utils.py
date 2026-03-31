@@ -25,3 +25,24 @@ def success_response(data=None, message="Success.", status_code=status.HTTP_200_
         payload["data"] = data
 
     return Response(payload, status=status_code)
+
+
+def error_response(message="An error occurred.", errors=None, status_code=status.HTTP_400_BAD_REQUEST):
+    """
+    Build a standard error response in the LabSynch envelope format.
+
+    Envelope format (error):
+    {
+        "success": false,
+        "message": "...",
+        "errors": { ... }
+    }
+    """
+    payload = {
+        "success": False,
+        "message": message,
+    }
+    if errors is not None:
+        payload["errors"] = errors
+
+    return Response(payload, status=status_code)

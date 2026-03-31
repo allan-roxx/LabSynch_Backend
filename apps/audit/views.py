@@ -3,6 +3,7 @@ Views for the Audit app.
 All endpoints are restricted to ADMIN users.
 """
 
+from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import IsAuthenticated
 
@@ -12,6 +13,7 @@ from .models import AuditLog
 from .serializers import AuditLogSerializer
 
 
+@extend_schema(tags=["audit-logs"])
 class AuditLogViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,

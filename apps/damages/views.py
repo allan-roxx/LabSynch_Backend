@@ -2,6 +2,7 @@
 Views for Damages app.
 """
 
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 
@@ -17,6 +18,14 @@ from .serializers import (
 from .services import create_damage_report, resolve_damage_report
 
 
+@extend_schema_view(
+    list=extend_schema(responses={200: DamageReportReadSerializer(many=True)}, summary="List all damage reports"),
+    retrieve=extend_schema(responses={200: DamageReportReadSerializer}, summary="Get a damage report"),
+    create=extend_schema(request=DamageReportCreateSerializer, responses={201: DamageReportReadSerializer}, summary="Create damage report"),
+    update=extend_schema(request=DamageReportCreateSerializer, responses={200: DamageReportReadSerializer}, summary="Update damage report"),
+    partial_update=extend_schema(request=DamageReportCreateSerializer, responses={200: DamageReportReadSerializer}, summary="Partial update damage report"),
+    destroy=extend_schema(summary="Delete damage report"),
+)
 class DamageReportViewSet(viewsets.ModelViewSet):
     """
     CRUD for Damage Reports.
@@ -55,6 +64,11 @@ class DamageReportViewSet(viewsets.ModelViewSet):
             status_code=status.HTTP_201_CREATED,
         )
 
+    @extend_schema(
+        request=DamageReportResolveSerializer,
+        responses={200: DamageReportReadSerializer},
+        summary="Resolve a damage report (set resolution status + repair cost)",
+    )
     @action(detail=True, methods=["post"])
     def resolve(self, request, pk=None):
         report = self.get_object()

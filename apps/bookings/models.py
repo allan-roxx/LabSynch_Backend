@@ -2,7 +2,7 @@ from django.db import models
 from django.db.models import F, Q
 
 from apps.equipment.models import Equipment
-from apps.users.models import SchoolProfile
+from apps.users.models import SchoolProfile, User
 from common.models import BaseModel
 
 
@@ -85,3 +85,61 @@ class BookingItem(BaseModel):
 
     def __str__(self):
         return f"{self.quantity}x {self.equipment.equipment_name} for {self.booking.booking_reference}"
+
+
+class Cart(BaseModel):
+    """
+    Server-side cart for a school user. One cart per user, persists across
+    logout/login. Stores the intended pickup/return dates along with line items.
+    Converted into a Booking via the checkout action.
+    """
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="cart",
+    )
+    pickup_date = models.DateField(null=True, blank=True)
+    return_date = models.DateField(null=True, blank=True)
+    special_instructions = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Cart"
+        verbose_name_plural = "Carts"
+
+    def __str__(self):
+        return f"Cart for {self.user.email}"
+
+
+class CartItem(BaseModel):
+    """
+    A single equipment line in a user's cart.
+    """
+
+    cart = models.ForeignKey(
+        Cart,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    equipment = models.ForeignKey(
+        Equipment,
+        on_delete=models.CASCADE,
+        related_name="cart_items",
+    )
+    quantity = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Cart Item"
+        verbose_name_plural = "Cart Items"
+        unique_together = [["cart", "equipment"]]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(quantity__gt=0),
+                name="cart_item_quantity_gt_zero",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.quantity}x {self.equipment.equipment_name} (cart: {self.cart.user.email})"

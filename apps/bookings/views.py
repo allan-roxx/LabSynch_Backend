@@ -2,15 +2,36 @@
 Views for Booking app.
 """
 
+from django.core.exceptions import ValidationError
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 
-from common.permissions import IsAdminUser
-from common.utils import success_response
+from common.permissions import IsAdminUser, IsSchoolUser
+from common.utils import error_response, success_response
 from .models import Booking, BookingStatus
-from .serializers import BookingCreateSerializer, BookingReadSerializer
-from .services import cancel_booking, create_booking
+from .serializers import (
+    BookingCreateSerializer,
+    BookingReadSerializer,
+    CartDatesSerializer,
+    CartItemReadSerializer,
+    CartItemUpdateSerializer,
+    CartItemWriteSerializer,
+    CartReadSerializer,
+)
+from .services import (
+    add_or_update_cart_item,
+    cancel_booking,
+    checkout_cart,
+    clear_cart,
+    create_booking,
+    get_or_create_cart,
+    remove_cart_item,
+    set_cart_dates,
+    update_cart_item_quantity,
+)
 
 
 class BookingViewSet(viewsets.ModelViewSet):
@@ -104,3 +125,160 @@ class BookingViewSet(viewsets.ModelViewSet):
             message="Booking cancelled successfully.",
             status_code=status.HTTP_200_OK,
         )
+
+
+# ---------------------------------------------------------------------------
+# Cart views  (school users only)
+# ---------------------------------------------------------------------------
+
+@extend_schema(methods=["GET"], responses={200: CartReadSerializer}, summary="Get current cart")
+@extend_schema(methods=["PATCH"], request=CartDatesSerializer, responses={200: CartReadSerializer}, summary="Set cart dates / instructions")
+@extend_schema(methods=["DELETE"], responses={200: OpenApiResponse(description="Cart cleared.")}, summary="Clear cart")
+class CartView(APIView):
+    """
+    GET  /api/cart/         — retrieve the current user's cart
+    PATCH /api/cart/        — set pickup_date / return_date / special_instructions
+    DELETE /api/cart/       — clear all items + reset dates
+    """
+
+    permission_classes = [IsAuthenticated, IsSchoolUser]
+
+    def get(self, request):
+        cart = get_or_create_cart(request.user)
+        cart_qs = (
+            type(cart).objects
+            .prefetch_related("items__equipment__category", "items__equipment__images")
+            .get(pk=cart.pk)
+        )
+        serializer = CartReadSerializer(cart_qs)
+        return success_response(data=serializer.data, message="Cart retrieved successfully.")
+
+    def patch(self, request):
+        serializer = CartDatesSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        cart = set_cart_dates(
+            user=request.user,
+            pickup_date=serializer.validated_data.get("pickup_date"),
+            return_date=serializer.validated_data.get("return_date"),
+            special_instructions=serializer.validated_data.get("special_instructions"),
+        )
+        cart_qs = (
+            type(cart).objects
+            .prefetch_related("items__equipment__category", "items__equipment__images")
+            .get(pk=cart.pk)
+        )
+        return success_response(
+            data=CartReadSerializer(cart_qs).data,
+            message="Cart updated successfully.",
+        )
+
+    def delete(self, request):
+        clear_cart(request.user)
+        return success_response(data=None, message="Cart cleared.")
+
+
+@extend_schema(
+    methods=["POST"],
+    request=None,
+    responses={201: BookingReadSerializer},
+    summary="Checkout cart — creates a Booking from cart contents",
+)
+class CartCheckoutView(APIView):
+    """
+    POST /api/cart/checkout/
+    Converts the cart into a Booking (status=PENDING) and clears the cart.
+    """
+
+    permission_classes = [IsAuthenticated, IsSchoolUser]
+
+    def post(self, request):
+        try:
+            booking = checkout_cart(request.user)
+        except ValidationError as exc:
+            message = exc.message if hasattr(exc, "message") else str(exc)
+            return error_response(
+                message=message,
+                errors={"non_field_errors": [message]},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = BookingReadSerializer(booking)
+        return success_response(
+            data=serializer.data,
+            message="Booking created successfully from cart.",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema(
+    methods=["POST"],
+    request=CartItemWriteSerializer,
+    responses={201: CartItemReadSerializer},
+    summary="Add item to cart (or update quantity if already present)",
+)
+class CartItemView(APIView):
+    """
+    POST /api/cart/items/
+    Add a new equipment item to the cart, or update its quantity if already present.
+    """
+
+    permission_classes = [IsAuthenticated, IsSchoolUser]
+
+    def post(self, request):
+        serializer = CartItemWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            item = add_or_update_cart_item(
+                user=request.user,
+                equipment_id=str(serializer.validated_data["equipment"]),
+                quantity=serializer.validated_data["quantity"],
+            )
+        except ValidationError as exc:
+            message = exc.message if hasattr(exc, "message") else str(exc)
+            return error_response(
+                message=message,
+                errors={"equipment": [message]},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        from .serializers import CartItemReadSerializer
+        return success_response(
+            data=CartItemReadSerializer(item).data,
+            message="Item added to cart.",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema(methods=["PATCH"], request=CartItemUpdateSerializer, responses={200: CartItemReadSerializer}, summary="Update cart item quantity")
+@extend_schema(methods=["DELETE"], responses={200: OpenApiResponse(description="Item removed.")}, summary="Remove item from cart")
+class CartItemDetailView(APIView):
+    """
+    PATCH  /api/cart/items/<item_id>/  — update quantity
+    DELETE /api/cart/items/<item_id>/  — remove item
+    """
+
+    permission_classes = [IsAuthenticated, IsSchoolUser]
+
+    def patch(self, request, item_id):
+        serializer = CartItemUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            item = update_cart_item_quantity(
+                user=request.user,
+                item_id=item_id,
+                quantity=serializer.validated_data["quantity"],
+            )
+        except ValidationError as exc:
+            message = exc.message if hasattr(exc, "message") else str(exc)
+            return error_response(
+                message=message,
+                errors={"non_field_errors": [message]},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        from .serializers import CartItemReadSerializer
+        return success_response(
+            data=CartItemReadSerializer(item).data,
+            message="Cart item updated.",
+        )
+
+    def delete(self, request, item_id):
+        remove_cart_item(user=request.user, item_id=item_id)
+        return success_response(data=None, message="Item removed from cart.")

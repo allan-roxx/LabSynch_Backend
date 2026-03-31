@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from apps.equipment.models import Equipment, PricingRule
 from apps.users.models import User, SchoolProfile
-from .models import Booking, BookingItem, BookingStatus
+from .models import Booking, BookingItem, BookingStatus, Cart, CartItem
 from apps.audit.services import log_action
 from apps.audit.models import AuditLog
 
@@ -215,5 +215,139 @@ def cancel_booking(booking: Booking, user: User) -> Booking:
         if eq:
             eq.available_quantity += item.quantity
             eq.save(update_fields=["available_quantity", "updated_at"])
+
+    return booking
+
+
+# ---------------------------------------------------------------------------
+# Cart services
+# ---------------------------------------------------------------------------
+
+def get_or_create_cart(user: User) -> Cart:
+    """Return the user's existing cart or create an empty one."""
+    cart, _ = Cart.objects.get_or_create(user=user)
+    return cart
+
+
+def add_or_update_cart_item(user: User, equipment_id: str, quantity: int) -> CartItem:
+    """
+    Add an equipment item to the cart. If it already exists, update quantity.
+    Raises ValidationError if equipment is not found or inactive.
+    """
+    try:
+        equipment = Equipment.objects.get(id=equipment_id, is_active=True)
+    except Equipment.DoesNotExist:
+        raise ValidationError("Equipment not found or is not available.")
+
+    cart = get_or_create_cart(user)
+    item, created = CartItem.objects.get_or_create(
+        cart=cart,
+        equipment=equipment,
+        defaults={"quantity": quantity},
+    )
+    if not created:
+        item.quantity = quantity
+        item.save(update_fields=["quantity", "updated_at"])
+
+    return item
+
+
+def update_cart_item_quantity(user: User, item_id: str, quantity: int) -> CartItem:
+    """
+    Change the quantity of an existing cart item owned by the user.
+    Raises ValidationError if the item is not found.
+    """
+    try:
+        item = CartItem.objects.select_related("cart").get(id=item_id, cart__user=user)
+    except CartItem.DoesNotExist:
+        raise ValidationError("Cart item not found.")
+
+    item.quantity = quantity
+    item.save(update_fields=["quantity", "updated_at"])
+    return item
+
+
+def remove_cart_item(user: User, item_id: str) -> None:
+    """Remove a single item from the user's cart."""
+    CartItem.objects.filter(id=item_id, cart__user=user).delete()
+
+
+def set_cart_dates(
+    user: User,
+    pickup_date=None,
+    return_date=None,
+    special_instructions=None,
+) -> Cart:
+    """Set or update the pickup/return dates on the cart."""
+    cart = get_or_create_cart(user)
+    update_fields = ["updated_at"]
+
+    if pickup_date is not None:
+        cart.pickup_date = pickup_date
+        update_fields.append("pickup_date")
+    if return_date is not None:
+        cart.return_date = return_date
+        update_fields.append("return_date")
+    if special_instructions is not None:
+        cart.special_instructions = special_instructions
+        update_fields.append("special_instructions")
+
+    cart.save(update_fields=update_fields)
+    return cart
+
+
+def clear_cart(user: User) -> None:
+    """Remove all items from the cart (keeps the cart row itself)."""
+    try:
+        cart = Cart.objects.get(user=user)
+        cart.items.all().delete()
+        cart.pickup_date = None
+        cart.return_date = None
+        cart.special_instructions = ""
+        cart.save(update_fields=["pickup_date", "return_date", "special_instructions", "updated_at"])
+    except Cart.DoesNotExist:
+        pass
+
+
+@transaction.atomic
+def checkout_cart(user: User) -> Booking:
+    """
+    Convert the user's cart into a Booking.
+    Validates dates, checks equipment availability, then calls create_booking.
+    Clears the cart on success.
+    Raises ValidationError on any constraint violation.
+    """
+    try:
+        cart = Cart.objects.prefetch_related("items__equipment").get(user=user)
+    except Cart.DoesNotExist:
+        raise ValidationError("Your cart is empty.")
+
+    if not cart.items.exists():
+        raise ValidationError("Your cart is empty.")
+
+    if not cart.pickup_date or not cart.return_date:
+        raise ValidationError(
+            "Please set pickup and return dates before checking out."
+        )
+
+    items_data = [
+        {"equipment_id": str(item.equipment_id), "quantity": item.quantity}
+        for item in cart.items.select_related("equipment").all()
+    ]
+
+    booking = create_booking(
+        user=user,
+        pickup_date=cart.pickup_date,
+        return_date=cart.return_date,
+        items_data=items_data,
+        special_instructions=cart.special_instructions,
+    )
+
+    # Clear cart after successful booking
+    cart.items.all().delete()
+    cart.pickup_date = None
+    cart.return_date = None
+    cart.special_instructions = ""
+    cart.save(update_fields=["pickup_date", "return_date", "special_instructions", "updated_at"])
 
     return booking
