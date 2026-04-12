@@ -73,10 +73,13 @@ class SchoolProfileAdmin(admin.ModelAdmin):
         "user",
         "registration_number",
         "county",
+        "town",
+        "transport_zone",
         "account_status",
+        "liability_status",
         "credit_limit",
     )
-    list_filter = ("account_status", "county")
-    search_fields = ("school_name", "registration_number", "user__email")
+    list_filter = ("account_status", "liability_status", "county", "transport_zone")
+    search_fields = ("school_name", "registration_number", "user__email", "town")
     ordering = ("-created_at",)
     readonly_fields = ("created_at", "updated_at")

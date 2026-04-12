@@ -11,6 +11,7 @@ class DamageReportAdmin(admin.ModelAdmin):
         "severity",
         "resolution_status",
         "repair_cost",
+        "amount_paid",
         "created_at",
     )
     list_filter = ("severity", "resolution_status", "created_at")

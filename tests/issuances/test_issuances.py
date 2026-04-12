@@ -40,7 +40,7 @@ def setup_data(db):
         school_profile=school_profile,
         pickup_date="2026-05-01",
         return_date="2026-05-05",
-        status=BookingStatus.PAID,  # Must be PAID to issue
+        status=BookingStatus.RESERVED,  # Must be RESERVED to issue
         total_amount="1500.00",
     )
     
@@ -85,9 +85,9 @@ class TestIssuancesAndReturns:
         assert response.status_code == status.HTTP_201_CREATED
         assert EquipmentIssuance.objects.filter(booking=booking).exists()
         
-        # Verify Booking Status shifted from PAID to ISSUED
+        # Verify Booking Status shifted from RESERVED to IN_USE
         booking.refresh_from_db()
-        assert booking.status == BookingStatus.ISSUED
+        assert booking.status == BookingStatus.IN_USE
 
     def test_school_user_cannot_issue_equipment(self, api_client, setup_data):
         school = setup_data["school"]
@@ -114,7 +114,7 @@ class TestIssuancesAndReturns:
         equipment = setup_data["equipment"]
         
         # Simulate already issued booking
-        booking.status = BookingStatus.ISSUED
+        booking.status = BookingStatus.IN_USE
         booking.save()
         
         EquipmentIssuance.objects.create(booking=booking, issued_by=admin, received_by=school)
@@ -136,9 +136,9 @@ class TestIssuancesAndReturns:
         response = api_client.post(url, payload, format="json")
         assert response.status_code == status.HTTP_201_CREATED
         
-        # Verify Booking Status shifted from ISSUED to COMPLETED
+        # Verify Booking Status shifted from IN_USE to RETURNED
         booking.refresh_from_db()
-        assert booking.status == BookingStatus.COMPLETED
+        assert booking.status == BookingStatus.RETURNED
         
         # Verify Equipment Quantity was restored (+2 quantity)
         equipment.refresh_from_db()

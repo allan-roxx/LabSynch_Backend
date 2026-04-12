@@ -78,7 +78,8 @@ class DamageReportViewSet(viewsets.ModelViewSet):
         updated_report = resolve_damage_report(
             damage_report=report,
             resolution_status=serializer.validated_data["resolution_status"],
-            repair_cost=serializer.validated_data.get("repair_cost")
+            repair_cost=serializer.validated_data.get("repair_cost"),
+            amount_paid=serializer.validated_data.get("amount_paid"),
         )
         
         read_serializer = DamageReportReadSerializer(updated_report)

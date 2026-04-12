@@ -105,7 +105,7 @@ class PaymentFactory(factory.django.DjangoModelFactory):
         model = Payment
 
     transaction_ref = factory.Sequence(lambda n: f"TXN-2026-{n:04d}")
-    booking = factory.SubFactory(BookingFactory, status=BookingStatus.PAID)
+    booking = factory.SubFactory(BookingFactory, status=BookingStatus.RESERVED)
     amount_paid = Decimal("5000.00")
     payment_method = PaymentMethod.MPESA
     payment_status = PaymentStatus.SUCCESS

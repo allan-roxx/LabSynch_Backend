@@ -52,8 +52,8 @@ def initiate_mpesa_payment(booking: Booking, phone_number: str) -> Payment:
     Initiates an STK Push to the user's phone for the requested booking.
     Records a PENDING payment locally.
     """
-    if booking.status != BookingStatus.PENDING:
-        raise ValidationError({"booking": f"Cannot pay for booking in {booking.status} state."})
+    if booking.status != BookingStatus.APPROVED:
+        raise ValidationError({"booking": f"Cannot pay for booking in {booking.status} state. Booking must be APPROVED first."})
         
     amount = int(booking.total_amount)
     if amount <= 0:
@@ -166,12 +166,12 @@ def process_mpesa_callback(payload: dict):
                 ]
             )
             
-            # Cascade success to Booking
+            # Cascade success to Booking → RESERVED
             booking = payment.booking
-            booking.status = BookingStatus.PAID
+            booking.status = BookingStatus.RESERVED
             booking.save(update_fields=["status", "updated_at"])
 
-            logger.info(f"Booking {booking.booking_reference} marked PAID via M-Pesa tx {payment.mpesa_transaction_id}")
+            logger.info(f"Booking {booking.booking_reference} marked RESERVED via M-Pesa tx {payment.mpesa_transaction_id}")
 
             from apps.notifications.tasks import send_payment_receipt
             send_payment_receipt.delay(str(payment.id))

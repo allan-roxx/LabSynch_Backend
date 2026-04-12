@@ -94,9 +94,12 @@ class UserResponseSerializer(serializers.ModelSerializer):
                 "registration_number": profile.registration_number,
                 "physical_address": profile.physical_address,
                 "county": profile.county,
+                "town": profile.town,
+                "transport_zone": str(profile.transport_zone_id) if profile.transport_zone_id else None,
                 "contact_person": profile.contact_person,
                 "contact_designation": profile.contact_designation,
                 "account_status": profile.account_status,
+                "liability_status": profile.liability_status,
             }
         except SchoolProfile.DoesNotExist:
             return None

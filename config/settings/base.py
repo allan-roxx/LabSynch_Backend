@@ -72,6 +72,7 @@ LOCAL_APPS = [
     "apps.maintenance",
     "apps.notifications",
     "apps.audit",
+    "apps.reports",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -204,7 +205,7 @@ SIMPLE_JWT = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "LabSynch API",
     "DESCRIPTION": "Laboratory Equipment Rental and Management Platform API",
-    "VERSION": "1.0.0",
+    "VERSION": "2.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "ENUM_NAME_OVERRIDES": {
         "BookingStatusEnum": "apps.bookings.models.BookingStatus",
@@ -212,6 +213,9 @@ SPECTACULAR_SETTINGS = {
         "MaintenanceStatusEnum": "apps.maintenance.models.MaintenanceStatus",
         "ResolutionStatusEnum": "apps.damages.models.ResolutionStatus",
         "AccountStatusEnum": "apps.users.models.AccountStatus",
+        "LiabilityStatusEnum": "apps.users.models.LiabilityStatus",
+        "ConditionEnum": "apps.equipment.models.Condition",
+        "DamageSeverityEnum": "apps.damages.models.DamageSeverity",
     },
 }
 

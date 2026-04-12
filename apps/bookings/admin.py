@@ -17,10 +17,12 @@ class BookingAdmin(admin.ModelAdmin):
         "pickup_date",
         "return_date",
         "status",
+        "requires_transport",
+        "transport_cost",
         "total_amount",
         "created_at",
     )
-    list_filter = ("status", "pickup_date", "return_date")
+    list_filter = ("status", "requires_transport", "pickup_date", "return_date")
     search_fields = (
         "booking_reference",
         "school_profile__school_name",

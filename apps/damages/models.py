@@ -15,6 +15,7 @@ class DamageSeverity(models.TextChoices):
 class ResolutionStatus(models.TextChoices):
     PENDING = "PENDING", "Pending Assessment"
     CHARGED = "CHARGED", "Charged to School"
+    PAID = "PAID", "Paid by School"
     WAIVED = "WAIVED", "Waived/Forgiven"
     RESOLVED = "RESOLVED", "Resolved and Closed"
 
@@ -53,7 +54,14 @@ class DamageReport(BaseModel):
         max_digits=10, 
         decimal_places=2, 
         blank=True, 
-        null=True
+        null=True,
+        help_text="Assessed repair/replacement cost.",
+    )
+    amount_paid = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Amount the school has paid toward this damage.",
     )
     resolution_status = models.CharField(
         max_length=20,
@@ -68,3 +76,10 @@ class DamageReport(BaseModel):
 
     def __str__(self):
         return f"Damage ({self.severity}) on {self.booking_item.equipment.equipment_name}"
+
+    @property
+    def amount_outstanding(self):
+        """Remaining balance owed by the school for this damage."""
+        if self.repair_cost is None:
+            return 0
+        return max(self.repair_cost - self.amount_paid, 0)

@@ -8,13 +8,28 @@ from common.models import BaseModel
 
 class BookingStatus(models.TextChoices):
     PENDING = "PENDING", "Pending"
-    CONFIRMED = "CONFIRMED", "Confirmed"
-    PAID = "PAID", "Paid"
-    ISSUED = "ISSUED", "Issued"
+    APPROVED = "APPROVED", "Approved"
+    RESERVED = "RESERVED", "Reserved (Paid)"
+    DISPATCHED = "DISPATCHED", "Dispatched"
+    IN_USE = "IN_USE", "In Use"
     RETURNED = "RETURNED", "Returned"
-    COMPLETED = "COMPLETED", "Completed"  # from ERD
-    OVERDUE = "OVERDUE", "Overdue"  # from business rules
+    COMPLETED = "COMPLETED", "Completed"
+    OVERDUE = "OVERDUE", "Overdue"
     CANCELLED = "CANCELLED", "Cancelled"
+
+
+# Valid state transitions (from → set of allowed targets)
+BOOKING_STATE_MACHINE = {
+    BookingStatus.PENDING: {BookingStatus.APPROVED, BookingStatus.CANCELLED},
+    BookingStatus.APPROVED: {BookingStatus.RESERVED, BookingStatus.CANCELLED},
+    BookingStatus.RESERVED: {BookingStatus.DISPATCHED, BookingStatus.IN_USE, BookingStatus.CANCELLED},
+    BookingStatus.DISPATCHED: {BookingStatus.IN_USE},
+    BookingStatus.IN_USE: {BookingStatus.RETURNED, BookingStatus.OVERDUE},
+    BookingStatus.OVERDUE: {BookingStatus.RETURNED},
+    BookingStatus.RETURNED: {BookingStatus.COMPLETED},
+    BookingStatus.COMPLETED: set(),
+    BookingStatus.CANCELLED: set(),
+}
 
 
 class Booking(BaseModel):
@@ -37,6 +52,18 @@ class Booking(BaseModel):
     )
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     special_instructions = models.TextField(blank=True, default="")
+
+    # Transport
+    requires_transport = models.BooleanField(
+        default=False,
+        help_text="Whether the school requested LabSynch delivery.",
+    )
+    transport_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Delivery fee (KES), 0 if school handles own transport.",
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -71,6 +98,12 @@ class BookingItem(BaseModel):
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    personnel_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Additional technician cost for this line item.",
+    )
 
     class Meta:
         ordering = ["created_at"]
@@ -102,6 +135,10 @@ class Cart(BaseModel):
     pickup_date = models.DateField(null=True, blank=True)
     return_date = models.DateField(null=True, blank=True)
     special_instructions = models.TextField(blank=True, default="")
+    requires_transport = models.BooleanField(
+        default=False,
+        help_text="Whether the school needs LabSynch delivery.",
+    )
 
     class Meta:
         ordering = ["-created_at"]

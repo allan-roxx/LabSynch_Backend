@@ -149,7 +149,7 @@ def send_overdue_alerts():
 
     today = timezone.now().date()
     overdue_qs = Booking.objects.filter(
-        status=BookingStatus.ISSUED,
+        status=BookingStatus.IN_USE,
         return_date__lt=today,
     ).select_related("school_profile__user")
 

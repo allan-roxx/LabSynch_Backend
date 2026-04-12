@@ -4,7 +4,13 @@ Serializers for Equipment app.
 
 from rest_framework import serializers
 
-from .models import Equipment, EquipmentCategory, EquipmentImage, PricingRule
+from .models import Equipment, EquipmentCategory, EquipmentImage, PricingRule, TransportZone
+
+
+class TransportZoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TransportZone
+        fields = ["id", "zone_name", "description", "base_transport_fee", "is_active"]
 
 
 class EquipmentCategorySerializer(serializers.ModelSerializer):
@@ -53,6 +59,11 @@ class EquipmentReadSerializer(serializers.ModelSerializer):
             "storage_location",
             "is_active",
             "images",
+            "acquisition_cost",
+            "acquisition_date",
+            "requires_personnel",
+            "personnel_cost_per_day",
+            "personnel_description",
         ]
 
 
@@ -69,6 +80,11 @@ class EquipmentWriteSerializer(serializers.ModelSerializer):
             "condition",
             "storage_location",
             "is_active",
+            "acquisition_cost",
+            "acquisition_date",
+            "requires_personnel",
+            "personnel_cost_per_day",
+            "personnel_description",
         ]
 
     def validate_total_quantity(self, value):

@@ -46,9 +46,9 @@ def test_send_payment_receipt_sends_email():
 
 
 @pytest.mark.django_db
-def test_send_overdue_alerts_marks_issued_past_return_date():
+def test_send_overdue_alerts_marks_in_use_past_return_date():
     booking = BookingFactory(
-        status=BookingStatus.ISSUED,
+        status=BookingStatus.IN_USE,
         pickup_date=date.today() - timedelta(days=10),
         return_date=date.today() - timedelta(days=2),
     )
@@ -64,7 +64,7 @@ def test_send_overdue_alerts_marks_issued_past_return_date():
 @pytest.mark.django_db
 def test_send_overdue_alerts_ignores_future_return_dates():
     booking = BookingFactory(
-        status=BookingStatus.ISSUED,
+        status=BookingStatus.IN_USE,
         pickup_date=date.today() + timedelta(days=1),
         return_date=date.today() + timedelta(days=5),
     )
@@ -74,14 +74,14 @@ def test_send_overdue_alerts_ignores_future_return_dates():
 
     assert count == 0
     booking.refresh_from_db()
-    assert booking.status == BookingStatus.ISSUED
+    assert booking.status == BookingStatus.IN_USE
 
 
 @pytest.mark.django_db
-def test_send_overdue_alerts_skips_non_issued_bookings():
-    """PAID bookings past return_date should NOT be touched by the overdue task."""
+def test_send_overdue_alerts_skips_non_in_use_bookings():
+    """RESERVED bookings past return_date should NOT be touched by the overdue task."""
     booking = BookingFactory(
-        status=BookingStatus.PAID,
+        status=BookingStatus.RESERVED,
         pickup_date=date.today() - timedelta(days=10),
         return_date=date.today() - timedelta(days=2),
     )
@@ -91,7 +91,7 @@ def test_send_overdue_alerts_skips_non_issued_bookings():
 
     assert count == 0
     booking.refresh_from_db()
-    assert booking.status == BookingStatus.PAID
+    assert booking.status == BookingStatus.RESERVED
 
 
 @pytest.mark.django_db
@@ -100,12 +100,12 @@ def test_send_overdue_alerts_returns_correct_count():
         # Create 3 overdue + 1 future
         for _ in range(3):
             BookingFactory(
-                status=BookingStatus.ISSUED,
+                status=BookingStatus.IN_USE,
                 pickup_date=date.today() - timedelta(days=10),
                 return_date=date.today() - timedelta(days=1),
             )
         BookingFactory(
-            status=BookingStatus.ISSUED,
+            status=BookingStatus.IN_USE,
             pickup_date=date.today() + timedelta(days=1),
             return_date=date.today() + timedelta(days=5),
         )

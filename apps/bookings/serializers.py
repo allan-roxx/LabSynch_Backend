@@ -19,6 +19,7 @@ class BookingCreateSerializer(serializers.Serializer):
     pickup_date = serializers.DateField()
     return_date = serializers.DateField()
     special_instructions = serializers.CharField(required=False, allow_blank=True, default="")
+    requires_transport = serializers.BooleanField(required=False, default=False)
     items = BookingItemCreateSerializer(many=True, allow_empty=False)
 
     def validate(self, attrs):
@@ -32,7 +33,7 @@ class BookingItemReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BookingItem
-        fields = ["id", "equipment", "quantity", "unit_price", "subtotal"]
+        fields = ["id", "equipment", "quantity", "unit_price", "subtotal", "personnel_cost"]
 
 
 class BookingReadSerializer(serializers.ModelSerializer):
@@ -50,6 +51,8 @@ class BookingReadSerializer(serializers.ModelSerializer):
             "status",
             "total_amount",
             "special_instructions",
+            "requires_transport",
+            "transport_cost",
             "created_at",
             "booking_items",
         ]
@@ -97,6 +100,7 @@ class CartDatesSerializer(serializers.Serializer):
     pickup_date = serializers.DateField(required=False, allow_null=True)
     return_date = serializers.DateField(required=False, allow_null=True)
     special_instructions = serializers.CharField(required=False, allow_blank=True)
+    requires_transport = serializers.BooleanField(required=False)
 
     def validate(self, attrs):
         pickup = attrs.get("pickup_date")
@@ -117,6 +121,7 @@ class CartReadSerializer(serializers.ModelSerializer):
             "pickup_date",
             "return_date",
             "special_instructions",
+            "requires_transport",
             "item_count",
             "items",
             "updated_at",

@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from .models import Equipment, EquipmentCategory, EquipmentImage, PricingRule
+from .models import Equipment, EquipmentCategory, EquipmentImage, PricingRule, TransportZone
+
+
+@admin.register(TransportZone)
+class TransportZoneAdmin(admin.ModelAdmin):
+    list_display = ("zone_name", "base_transport_fee", "is_active", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("zone_name",)
+    ordering = ("zone_name",)
 
 
 @admin.register(EquipmentCategory)
@@ -26,8 +34,9 @@ class EquipmentAdmin(admin.ModelAdmin):
         "unit_price_per_day",
         "condition",
         "is_active",
+        "requires_personnel",
     )
-    list_filter = ("category", "condition", "is_active")
+    list_filter = ("category", "condition", "is_active", "requires_personnel")
     search_fields = ("equipment_name", "equipment_code")
     ordering = ("category__display_order", "equipment_name")
     inlines = [EquipmentImageInline]

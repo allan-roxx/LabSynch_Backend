@@ -36,6 +36,9 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 class SchoolProfileReadSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)
     user_full_name = serializers.CharField(source="user.full_name", read_only=True)
+    transport_zone_name = serializers.CharField(
+        source="transport_zone.zone_name", read_only=True, default=None,
+    )
 
     class Meta:
         model = SchoolProfile
@@ -48,14 +51,23 @@ class SchoolProfileReadSerializer(serializers.ModelSerializer):
             "registration_number",
             "physical_address",
             "county",
+            "town",
+            "gps_latitude",
+            "gps_longitude",
+            "transport_zone",
+            "transport_zone_name",
             "contact_person",
             "contact_designation",
             "credit_limit",
             "account_status",
+            "liability_status",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "user", "user_email", "user_full_name", "created_at", "updated_at"]
+        read_only_fields = [
+            "id", "user", "user_email", "user_full_name",
+            "liability_status", "created_at", "updated_at",
+        ]
 
 
 class SchoolProfileUpdateSerializer(serializers.ModelSerializer):
@@ -67,6 +79,9 @@ class SchoolProfileUpdateSerializer(serializers.ModelSerializer):
             "school_name",
             "physical_address",
             "county",
+            "town",
+            "gps_latitude",
+            "gps_longitude",
             "contact_person",
             "contact_designation",
         ]
@@ -82,6 +97,10 @@ class AdminSchoolProfileUpdateSerializer(serializers.ModelSerializer):
             "registration_number",
             "physical_address",
             "county",
+            "town",
+            "gps_latitude",
+            "gps_longitude",
+            "transport_zone",
             "contact_person",
             "contact_designation",
             "credit_limit",

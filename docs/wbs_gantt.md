@@ -37,10 +37,10 @@ gantt
     Pytest Verification            :done, b5, after b4, 1d
 
     section Frontend
-    Project Scaffold & Auth UI     :active, f1, 2026-03-31, 3d
-    School Tenant UX (Catalog/Cart):        f2, after f1, 5d
-    Admin Dashboard (Orders/Logs)  :        f3, after f2, 5d
-    M-Pesa Visual Payment Flow     :        f4, after f3, 2d
+    Project Scaffold & Auth UI     :done,   f1, 2026-03-14, 4d
+    School Tenant UX (Catalog/Cart):active, f2, after f1,   14d
+    Admin Dashboard (Orders/Logs)  :        f3, after f2,   6d
+    M-Pesa Visual Payment Flow     :        f4, after f3,   3d
 
     section QA & Deploy
     End-to-End Testing (UAT)       :        q1, after f4, 4d

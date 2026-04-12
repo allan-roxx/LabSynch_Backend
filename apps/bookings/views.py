@@ -3,12 +3,14 @@ Views for Booking app.
 """
 
 from django.core.exceptions import ValidationError
+from django.http import FileResponse
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from common.pdf import generate_contract_pdf
 from common.permissions import IsAdminUser, IsSchoolUser
 from common.utils import error_response, success_response
 from .models import Booking, BookingStatus
@@ -23,9 +25,11 @@ from .serializers import (
 )
 from .services import (
     add_or_update_cart_item,
+    approve_booking,
     cancel_booking,
     checkout_cart,
     clear_cart,
+    complete_booking,
     create_booking,
     get_or_create_cart,
     remove_cart_item,
@@ -38,7 +42,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     """
     CRUD API for Bookings.
     SCHOOL users can see/create/cancel their own bookings.
-    ADMIN users can see all and update statuses.
+    ADMIN users can see all and manage statuses.
     """
 
     permission_classes = [IsAuthenticated]
@@ -76,15 +80,16 @@ class BookingViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         booking = create_booking(
             user=request.user,
             pickup_date=serializer.validated_data["pickup_date"],
             return_date=serializer.validated_data["return_date"],
             items_data=serializer.validated_data["items"],
             special_instructions=serializer.validated_data.get("special_instructions", ""),
+            requires_transport=serializer.validated_data.get("requires_transport", False),
         )
-        
+
         read_serializer = BookingReadSerializer(booking)
         return success_response(
             data=read_serializer.data,
@@ -95,35 +100,72 @@ class BookingViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         """Only ADMIN users can update bookings arbitrarily."""
         if request.user.user_type != "ADMIN":
-            return success_response(
-                data=None, 
-                message="Only administrators can update bookings.", 
-                status_code=status.HTTP_403_FORBIDDEN
+            return error_response(
+                message="Only administrators can update bookings.",
+                status_code=status.HTTP_403_FORBIDDEN,
             )
-        
-        partial = kwargs.pop("partial", False)
+
         instance = self.get_object()
-        
-        # We only allow updating status directly for now, via a generic update or partial_update
-        # A more robust system would have separate status transition endpoints
+
         if "status" in request.data:
             instance.status = request.data["status"]
             instance.save(update_fields=["status", "updated_at"])
-            
+
         serializer = self.get_serializer(instance)
         return success_response(data=serializer.data, message="Booking updated successfully.")
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
-        """Endpoint to cancel a PENDING or CONFIRMED booking."""
+        """Cancel a PENDING/APPROVED/RESERVED booking."""
         booking = self.get_object()
         cancelled_booking = cancel_booking(booking, request.user)
-        
         serializer = BookingReadSerializer(cancelled_booking)
         return success_response(
             data=serializer.data,
             message="Booking cancelled successfully.",
-            status_code=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        request=None,
+        responses={200: BookingReadSerializer},
+        summary="Approve a PENDING booking (admin only)",
+    )
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAdminUser])
+    def approve(self, request, pk=None):
+        """Admin approves a PENDING booking -> APPROVED."""
+        booking = self.get_object()
+        approved = approve_booking(booking, request.user)
+        serializer = BookingReadSerializer(approved)
+        return success_response(data=serializer.data, message="Booking approved successfully.")
+
+    @extend_schema(
+        request=None,
+        responses={200: BookingReadSerializer},
+        summary="Complete a RETURNED booking (admin only)",
+    )
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAdminUser])
+    def complete(self, request, pk=None):
+        """Admin marks a RETURNED booking as COMPLETED."""
+        booking = self.get_object()
+        completed = complete_booking(booking, request.user)
+        serializer = BookingReadSerializer(completed)
+        return success_response(data=serializer.data, message="Booking completed successfully.")
+
+    @extend_schema(
+        request=None,
+        responses={200: OpenApiResponse(description="PDF contract file")},
+        summary="Download equipment usage agreement PDF",
+    )
+    @action(detail=True, methods=["get"])
+    def contract(self, request, pk=None):
+        """Download a PDF equipment usage agreement for a booking."""
+        booking = self.get_object()
+        pdf_buf = generate_contract_pdf(booking)
+        return FileResponse(
+            pdf_buf,
+            as_attachment=True,
+            filename=f"contract_{booking.booking_reference}.pdf",
+            content_type="application/pdf",
         )
 
 
@@ -161,6 +203,7 @@ class CartView(APIView):
             pickup_date=serializer.validated_data.get("pickup_date"),
             return_date=serializer.validated_data.get("return_date"),
             special_instructions=serializer.validated_data.get("special_instructions"),
+            requires_transport=serializer.validated_data.get("requires_transport"),
         )
         cart_qs = (
             type(cart).objects

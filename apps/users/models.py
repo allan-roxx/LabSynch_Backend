@@ -88,6 +88,11 @@ class AccountStatus(models.TextChoices):
     BLOCKED = "BLOCKED", "Blocked"
 
 
+class LiabilityStatus(models.TextChoices):
+    CLEAR = "CLEAR", "Clear"
+    HAS_OUTSTANDING = "HAS_OUTSTANDING", "Has Outstanding Liabilities"
+
+
 class SchoolProfile(BaseModel):
     """
     Extended profile for SCHOOL-type users.
@@ -120,6 +125,42 @@ class SchoolProfile(BaseModel):
         max_length=20,
         choices=AccountStatus.choices,
         default=AccountStatus.ACTIVE,
+    )
+
+    # Location / Transport
+    town = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Town or locality of the school.",
+    )
+    gps_latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+    gps_longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+    transport_zone = models.ForeignKey(
+        "equipment.TransportZone",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="school_profiles",
+        help_text="The transport zone used to calculate delivery fees.",
+    )
+
+    # Liability / Trust
+    liability_status = models.CharField(
+        max_length=20,
+        choices=LiabilityStatus.choices,
+        default=LiabilityStatus.CLEAR,
+        help_text="Blocks new bookings if HAS_OUTSTANDING.",
     )
 
     class Meta:

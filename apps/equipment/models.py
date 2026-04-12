@@ -4,6 +4,30 @@ from django.db.models import F, Q
 from common.models import BaseModel
 
 
+class TransportZone(BaseModel):
+    """
+    Geographic zone used for distance-based transport pricing.
+    Examples: Kiambu Central, Thika, Ruiru, Limuru.
+    """
+
+    zone_name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, default="")
+    base_transport_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Flat delivery fee (KES) for this zone.",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["zone_name"]
+        verbose_name = "Transport Zone"
+        verbose_name_plural = "Transport Zones"
+
+    def __str__(self):
+        return f"{self.zone_name} (KES {self.base_transport_fee})"
+
+
 class EquipmentCategory(BaseModel):
     """
     Equipment classification for easy browsing and pricing rules.
@@ -55,6 +79,38 @@ class Equipment(BaseModel):
     )
     storage_location = models.CharField(max_length=255, blank=True, default="")
     is_active = models.BooleanField(default=True)
+
+    # Inventory enrichment
+    acquisition_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Original purchase price per unit.",
+    )
+    acquisition_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date the equipment was acquired.",
+    )
+
+    # Specialized equipment handling
+    requires_personnel = models.BooleanField(
+        default=False,
+        help_text="Whether this equipment needs a technician during use.",
+    )
+    personnel_cost_per_day = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Extra daily cost for technician support (KES).",
+    )
+    personnel_description = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Description of personnel requirement, e.g. 'Certified 3D printer technician'.",
+    )
 
     class Meta:
         ordering = ["category__display_order", "equipment_name"]

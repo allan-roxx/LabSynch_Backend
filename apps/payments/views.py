@@ -2,16 +2,18 @@
 Views for Payments app.
 """
 
+from django.http import FileResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from apps.bookings.models import Booking
 from rest_framework.exceptions import ValidationError
-from common.utils import success_response
+from common.pdf import generate_receipt_pdf
+from common.utils import success_response, error_response
 from .models import Payment
 from .serializers import PaymentReadSerializer, STKPushRequestSerializer
 from .services import initiate_mpesa_payment, process_mpesa_callback
@@ -69,6 +71,28 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
             data={"payment_id": payment.id, "transaction_ref": payment.transaction_ref},
             message="M-Pesa payment prompt initiated successfully on your phone.",
             status_code=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(
+        request=None,
+        responses={200: OpenApiResponse(description="PDF receipt file")},
+        summary="Download payment receipt PDF",
+    )
+    @action(detail=True, methods=["get"])
+    def receipt(self, request, pk=None):
+        """Download a PDF receipt for a completed payment."""
+        payment = self.get_object()
+        if payment.payment_status != "SUCCESS":
+            return error_response(
+                message="Receipt is only available for completed payments.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        pdf_buf = generate_receipt_pdf(payment)
+        return FileResponse(
+            pdf_buf,
+            as_attachment=True,
+            filename=f"receipt_{payment.transaction_ref}.pdf",
+            content_type="application/pdf",
         )
 
 

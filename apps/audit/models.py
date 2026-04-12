@@ -18,8 +18,11 @@ class AuditLog(BaseModel):
         LOGIN = "LOGIN", "Login"
         LOGOUT = "LOGOUT", "Logout"
         CANCEL = "CANCEL", "Cancel"
+        APPROVE = "APPROVE", "Approve"
+        DISPATCH = "DISPATCH", "Dispatch"
         ISSUE = "ISSUE", "Issue"
         RETURN = "RETURN", "Return"
+        COMPLETE = "COMPLETE", "Complete"
         PAYMENT = "PAYMENT", "Payment"
         RESOLVE = "RESOLVE", "Resolve"
 
