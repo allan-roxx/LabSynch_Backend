@@ -41,13 +41,13 @@ def get_dashboard_metrics() -> dict:
     overdue_bookings = Booking.objects.filter(status=BookingStatus.OVERDUE).count()
 
     revenue_total = Payment.objects.filter(
-        payment_status="COMPLETED",
-    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        payment_status="SUCCESS",
+    ).aggregate(total=Sum("amount_paid"))["total"] or Decimal("0.00")
 
     revenue_this_month = Payment.objects.filter(
-        payment_status="COMPLETED",
-        paid_at__gte=month_start,
-    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        payment_status="SUCCESS",
+        completed_at__gte=month_start,
+    ).aggregate(total=Sum("amount_paid"))["total"] or Decimal("0.00")
 
     total_schools = SchoolProfile.objects.count()
     total_equipment = Equipment.objects.filter(is_active=True).count()
@@ -104,13 +104,13 @@ def get_booking_report(start_date: date | None = None, end_date: date | None = N
 
 def get_financial_report(start_date: date | None = None, end_date: date | None = None) -> dict:
     """Revenue breakdown: total, by month, outstanding damages."""
-    payments = Payment.objects.filter(payment_status="COMPLETED")
+    payments = Payment.objects.filter(payment_status="SUCCESS")
     if start_date:
-        payments = payments.filter(paid_at__date__gte=start_date)
+        payments = payments.filter(completed_at__date__gte=start_date)
     if end_date:
-        payments = payments.filter(paid_at__date__lte=end_date)
+        payments = payments.filter(completed_at__date__lte=end_date)
 
-    total_revenue = payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    total_revenue = payments.aggregate(total=Sum("amount_paid"))["total"] or Decimal("0.00")
     payment_count = payments.count()
 
     outstanding_damages = DamageReport.objects.filter(

@@ -95,7 +95,14 @@ def initiate_mpesa_payment(booking: Booking, phone_number: str) -> Payment:
     
     access_token = get_mpesa_access_token()
     headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-    
+
+    logger.debug(
+        "STK Push payload — shortcode=%r passkey=%r... callback=%r",
+        settings.MPESA_SHORTCODE,
+        settings.MPESA_PASSKEY[:6],
+        settings.MPESA_CALLBACK_URL,
+    )
+
     # Send Request to Safaricom
     if access_token != "dummy_token":
         url = f"{settings.MPESA_ENVIRONMENT_URL}/mpesa/stkpush/v1/processrequest"
@@ -108,8 +115,14 @@ def initiate_mpesa_payment(booking: Booking, phone_number: str) -> Payment:
             payment.mpesa_checkout_request_id = data.get("CheckoutRequestID")
             payment.save(update_fields=["mpesa_checkout_request_id", "updated_at"])
             
+        except requests.exceptions.HTTPError as e:
+            body = e.response.text if e.response is not None else "no body"
+            logger.error("STK Push failed for booking %s: %s | response: %s", booking.id, e, body)
+            payment.payment_status = PaymentStatus.FAILED
+            payment.save(update_fields=["payment_status", "updated_at"])
+            raise ValidationError({"mpesa": "Failed to initiate M-Pesa prompt. Please try again."})
         except requests.exceptions.RequestException as e:
-            logger.error(f"STK Push failed for booking {booking.id}: {e}")
+            logger.error("STK Push failed for booking %s: %s", booking.id, e)
             payment.payment_status = PaymentStatus.FAILED
             payment.save(update_fields=["payment_status", "updated_at"])
             raise ValidationError({"mpesa": "Failed to initiate M-Pesa prompt. Please try again."})

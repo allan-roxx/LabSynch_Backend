@@ -23,7 +23,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.equipment.models import Equipment, EquipmentCategory, PricingRule
+from apps.equipment.models import Equipment, EquipmentCategory, PricingRule, TransportZone
 from apps.users.models import AccountStatus, SchoolProfile, UserType
 
 logger = logging.getLogger(__name__)
@@ -94,7 +94,7 @@ EQUIPMENT = {
             "description": "Borosilicate glass beaker, 250 ml, graduated.",
             "total_quantity": 50,
             "available_quantity": 50,
-            "unit_price_per_day": "150.00",
+            "unit_price_per_day": "40.00",
             "condition": "GOOD",
             "storage_location": "Rack A1",
         },
@@ -104,7 +104,7 @@ EQUIPMENT = {
             "description": "Borosilicate glass beaker, 500 ml, graduated.",
             "total_quantity": 40,
             "available_quantity": 40,
-            "unit_price_per_day": "200.00",
+            "unit_price_per_day": "30.00",
             "condition": "GOOD",
             "storage_location": "Rack A1",
         },
@@ -114,7 +114,7 @@ EQUIPMENT = {
             "description": "Conical flask, 250 ml, narrow neck, borosilicate glass.",
             "total_quantity": 30,
             "available_quantity": 30,
-            "unit_price_per_day": "180.00",
+            "unit_price_per_day": "40.00",
             "condition": "GOOD",
             "storage_location": "Rack A2",
         },
@@ -124,7 +124,7 @@ EQUIPMENT = {
             "description": "Borosilicate glass graduated cylinder, 100 ml.",
             "total_quantity": 25,
             "available_quantity": 25,
-            "unit_price_per_day": "250.00",
+            "unit_price_per_day": "40.00",
             "condition": "GOOD",
             "storage_location": "Rack A2",
         },
@@ -134,7 +134,7 @@ EQUIPMENT = {
             "description": "Round-bottom boiling flask, 500 ml, borosilicate glass.",
             "total_quantity": 20,
             "available_quantity": 20,
-            "unit_price_per_day": "220.00",
+            "unit_price_per_day": "50.00",
             "condition": "GOOD",
             "storage_location": "Rack A3",
         },
@@ -159,7 +159,7 @@ EQUIPMENT = {
             ),
             "total_quantity": 15,
             "available_quantity": 15,
-            "unit_price_per_day": "1500.00",
+            "unit_price_per_day": "120.00",
             "condition": "GOOD",
             "storage_location": "Cabinet B1",
         },
@@ -172,7 +172,7 @@ EQUIPMENT = {
             ),
             "total_quantity": 10,
             "available_quantity": 10,
-            "unit_price_per_day": "1200.00",
+            "unit_price_per_day": "100.00",
             "condition": "GOOD",
             "storage_location": "Cabinet B1",
         },
@@ -182,7 +182,7 @@ EQUIPMENT = {
             "description": "Optical glass magnifier, 10× magnification, 75 mm lens diameter.",
             "total_quantity": 30,
             "available_quantity": 30,
-            "unit_price_per_day": "100.00",
+            "unit_price_per_day": "30.00",
             "condition": "GOOD",
             "storage_location": "Drawer B2",
         },
@@ -192,7 +192,7 @@ EQUIPMENT = {
             "description": "Direct-view spectroscope for visible light spectrum analysis.",
             "total_quantity": 8,
             "available_quantity": 8,
-            "unit_price_per_day": "800.00",
+            "unit_price_per_day": "50.00",
             "condition": "GOOD",
             "storage_location": "Cabinet B2",
         },
@@ -204,7 +204,7 @@ EQUIPMENT = {
             "description": "Electronic balance, capacity 600 g, readability 0.1 g, tare function.",
             "total_quantity": 10,
             "available_quantity": 10,
-            "unit_price_per_day": "600.00",
+            "unit_price_per_day": "50.00",
             "condition": "GOOD",
             "storage_location": "Cabinet C1",
         },
@@ -214,7 +214,7 @@ EQUIPMENT = {
             "description": "Mechanical triple-beam balance, 610 g capacity, 0.1 g sensitivity.",
             "total_quantity": 12,
             "available_quantity": 12,
-            "unit_price_per_day": "400.00",
+            "unit_price_per_day": "50.00",
             "condition": "GOOD",
             "storage_location": "Cabinet C1",
         },
@@ -224,7 +224,7 @@ EQUIPMENT = {
             "description": "Stainless steel Vernier caliper, 150 mm range, 0.02 mm resolution.",
             "total_quantity": 20,
             "available_quantity": 20,
-            "unit_price_per_day": "300.00",
+            "unit_price_per_day": "50.00",
             "condition": "GOOD",
             "storage_location": "Drawer C2",
         },
@@ -234,7 +234,7 @@ EQUIPMENT = {
             "description": "Mercury-free glass thermometer, −10 to 110 °C, 1 °C graduation.",
             "total_quantity": 50,
             "available_quantity": 50,
-            "unit_price_per_day": "120.00",
+            "unit_price_per_day": "70.00",
             "condition": "GOOD",
             "storage_location": "Drawer C2",
         },
@@ -256,7 +256,7 @@ EQUIPMENT = {
             "description": "Pear-shaped separating funnel, 250 ml, PTFE stopcock.",
             "total_quantity": 15,
             "available_quantity": 15,
-            "unit_price_per_day": "350.00",
+            "unit_price_per_day": "50.00",
             "condition": "GOOD",
             "storage_location": "Rack D1",
         },
@@ -266,7 +266,7 @@ EQUIPMENT = {
             "description": "Glass burette, 50 ml, PTFE stopcock, 0.1 ml graduation.",
             "total_quantity": 20,
             "available_quantity": 20,
-            "unit_price_per_day": "350.00",
+            "unit_price_per_day": "50.00",
             "condition": "GOOD",
             "storage_location": "Rack D1",
         },
@@ -276,7 +276,7 @@ EQUIPMENT = {
             "description": "Volumetric glass pipette, 10 ml, Class A calibration.",
             "total_quantity": 40,
             "available_quantity": 40,
-            "unit_price_per_day": "150.00",
+            "unit_price_per_day": "40.00",
             "condition": "GOOD",
             "storage_location": "Drawer D2",
         },
@@ -286,7 +286,7 @@ EQUIPMENT = {
             "description": "Cast-iron retort stand, 700 mm rod, with boss head and clamp.",
             "total_quantity": 20,
             "available_quantity": 20,
-            "unit_price_per_day": "280.00",
+            "unit_price_per_day": "80.00",
             "condition": "GOOD",
             "storage_location": "Rack D2",
         },
@@ -296,7 +296,7 @@ EQUIPMENT = {
             "description": "Amber glass dropper bottle with glass pipette, 100 ml.",
             "total_quantity": 60,
             "available_quantity": 60,
-            "unit_price_per_day": "80.00",
+            "unit_price_per_day": "10.00",
             "condition": "GOOD",
             "storage_location": "Drawer D3",
         },
@@ -308,7 +308,7 @@ EQUIPMENT = {
             "description": "Natural gas / LPG Bunsen burner with air adjustment collar.",
             "total_quantity": 25,
             "available_quantity": 25,
-            "unit_price_per_day": "400.00",
+            "unit_price_per_day": "40.00",
             "condition": "GOOD",
             "storage_location": "Cabinet E1",
         },
@@ -318,7 +318,7 @@ EQUIPMENT = {
             "description": "Combined hot plate and magnetic stirrer, 300 °C max, 1000 rpm.",
             "total_quantity": 8,
             "available_quantity": 8,
-            "unit_price_per_day": "900.00",
+            "unit_price_per_day": "90.00",
             "condition": "GOOD",
             "storage_location": "Cabinet E1",
         },
@@ -328,7 +328,7 @@ EQUIPMENT = {
             "description": "Stainless steel electric water bath, 6 holes, RT to 100 °C.",
             "total_quantity": 6,
             "available_quantity": 6,
-            "unit_price_per_day": "1200.00",
+            "unit_price_per_day": "150.00",
             "condition": "GOOD",
             "storage_location": "Cabinet E2",
         },
@@ -338,7 +338,7 @@ EQUIPMENT = {
             "description": "Porcelain crucible with lid, 30 ml, heat-resistant to 1200 °C.",
             "total_quantity": 30,
             "available_quantity": 30,
-            "unit_price_per_day": "150.00",
+            "unit_price_per_day": "50.00",
             "condition": "GOOD",
             "storage_location": "Drawer E2",
         },
@@ -348,7 +348,7 @@ EQUIPMENT = {
             "description": "150 × 150 mm wire gauze with ceramic centre for even heat distribution.",
             "total_quantity": 30,
             "available_quantity": 30,
-            "unit_price_per_day": "80.00",
+            "unit_price_per_day": "10.00",
             "condition": "GOOD",
             "storage_location": "Drawer E3",
         },
@@ -360,7 +360,7 @@ EQUIPMENT = {
             "description": "Indirect-vent chemical splash goggles, anti-fog, adjustable strap.",
             "total_quantity": 60,
             "available_quantity": 60,
-            "unit_price_per_day": "100.00",
+            "unit_price_per_day": "30.00",
             "condition": "GOOD",
             "storage_location": "Cabinet F1",
         },
@@ -370,7 +370,7 @@ EQUIPMENT = {
             "description": "White cotton/polyester lab coat, size Medium, front-button closure.",
             "total_quantity": 40,
             "available_quantity": 40,
-            "unit_price_per_day": "200.00",
+            "unit_price_per_day": "50.00",
             "condition": "GOOD",
             "storage_location": "Cabinet F1",
         },
@@ -380,7 +380,7 @@ EQUIPMENT = {
             "description": "White cotton/polyester lab coat, size Large, front-button closure.",
             "total_quantity": 30,
             "available_quantity": 30,
-            "unit_price_per_day": "200.00",
+            "unit_price_per_day": "50.00",
             "condition": "GOOD",
             "storage_location": "Cabinet F1",
         },
@@ -390,7 +390,7 @@ EQUIPMENT = {
             "description": "Nitrile chemical-resistant gloves, 0.4 mm thickness — pair.",
             "total_quantity": 80,
             "available_quantity": 80,
-            "unit_price_per_day": "100.00",
+            "unit_price_per_day": "30.00",
             "condition": "NEW",
             "storage_location": "Cabinet F2",
         },
@@ -400,12 +400,59 @@ EQUIPMENT = {
             "description": "Portable 1 kg CO₂ fire extinguisher, suitable for class B/C fires.",
             "total_quantity": 5,
             "available_quantity": 5,
-            "unit_price_per_day": "600.00",
+            "unit_price_per_day": "60.00",
             "condition": "GOOD",
             "storage_location": "Cabinet F2",
         },
     ],
 }
+
+# Transport zones — distance-based delivery fees from the central lab in Kiganjo.
+TRANSPORT_ZONES = [
+    {
+        "zone_name": "Kiganjo",
+        "description": (
+            "Local zone covering Kiganjo and immediate surroundings "
+            "in Thika West, Kiambu County. No transport charge."
+        ),
+        "base_transport_fee": "0.00",
+    },
+    {
+        "zone_name": "Thika Town",
+        "description": "Thika Town centre and its immediate environs (~8 km from Kiganjo).",
+        "base_transport_fee": "500.00",
+    },
+    {
+        "zone_name": "Juja",
+        "description": "Juja constituency including Juja Farm and JKUAT area (~20 km).",
+        "base_transport_fee": "1000.00",
+    },
+    {
+        "zone_name": "Ruiru",
+        "description": "Ruiru town and surrounding estates in Kiambu County (~28 km).",
+        "base_transport_fee": "1300.00",
+    },
+    {
+        "zone_name": "Githunguri",
+        "description": "Githunguri constituency and surrounding dairy belt (~35 km).",
+        "base_transport_fee": "1500.00",
+    },
+    {
+        "zone_name": "Kiambu Town",
+        "description": "Kiambu Town and neighbouring wards in Kiambu constituency (~40 km).",
+        "base_transport_fee": "1800.00",
+    },
+    {
+        "zone_name": "Limuru",
+        "description": "Limuru and the wider tea belt in south-western Kiambu (~48 km).",
+        "base_transport_fee": "2200.00",
+    },
+    {
+        "zone_name": "Nairobi CBD",
+        "description": "Nairobi Central Business District and inner Nairobi suburbs (~55 km).",
+        "base_transport_fee": "2800.00",
+    },
+]
 
 # Pricing rules applied to every category.
 # (min_days, max_days, discount_percentage)
@@ -425,8 +472,10 @@ SCHOOLS = [
         "phone_number": "+254711000001",
         "school_name": "Alpha High School Kiganjo",
         "registration_number": "KE/SCHOOLS/2001/0141",
-        "physical_address": "Kiganjo, Nyeri County",
-        "county": "Nyeri",
+        "physical_address": "Kiganjo, Thika West, Kiambu County",
+        "town": "Kiganjo",
+        "county": "Kiambu",
+        "zone_name": "Kiganjo",
         "contact_person": "James Mwangi",
         "contact_designation": "Head of Science Department",
         "credit_limit": "50000.00",
@@ -436,10 +485,12 @@ SCHOOLS = [
         "password": "LabSynch@2025!",
         "full_name": "Thika Boys Administrator",
         "phone_number": "+254711000002",
-        "school_name": "Thika Boys High School Kiganjo",
+        "school_name": "Thika Boys High School",
         "registration_number": "KE/SCHOOLS/1998/0089",
-        "physical_address": "Kiganjo, Kiambu County",
+        "physical_address": "Thika Town, Kiambu County",
+        "town": "Thika",
         "county": "Kiambu",
+        "zone_name": "Thika Town",
         "contact_person": "Peter Kamau",
         "contact_designation": "Principal",
         "credit_limit": "75000.00",
@@ -449,10 +500,12 @@ SCHOOLS = [
         "password": "LabSynch@2025!",
         "full_name": "Double Impact Secondary Administrator",
         "phone_number": "+254711000003",
-        "school_name": "Double Impact Secondary School Kiganjo",
+        "school_name": "Double Impact Secondary School",
         "registration_number": "KE/SCHOOLS/2005/0257",
-        "physical_address": "Kiganjo Town, Nyeri County",
-        "county": "Nyeri",
+        "physical_address": "Kiganjo, Thika West, Kiambu County",
+        "town": "Kiganjo",
+        "county": "Kiambu",
+        "zone_name": "Kiganjo",
         "contact_person": "Grace Wanjiku",
         "contact_designation": "Deputy Principal",
         "credit_limit": "40000.00",
@@ -464,8 +517,10 @@ SCHOOLS = [
         "phone_number": "+254711000004",
         "school_name": "Kiganjo Secondary School",
         "registration_number": "KE/SCHOOLS/1995/0062",
-        "physical_address": "Kiganjo, Nyeri County",
-        "county": "Nyeri",
+        "physical_address": "Kiganjo, Thika West, Kiambu County",
+        "town": "Kiganjo",
+        "county": "Kiambu",
+        "zone_name": "Kiganjo",
         "contact_person": "Samuel Njoroge",
         "contact_designation": "Head of Science Department",
         "credit_limit": "45000.00",
@@ -494,7 +549,8 @@ class Command(BaseCommand):
             category_map = self._seed_categories()
             self._seed_equipment(category_map)
             self._seed_pricing_rules(category_map)
-            self._seed_schools()
+            zone_map = self._seed_transport_zones()
+            self._seed_schools(zone_map)
 
         self.stdout.write(self.style.SUCCESS("\nSeed complete."))
 
@@ -515,6 +571,10 @@ class Command(BaseCommand):
         emails = [s["email"] for s in SCHOOLS]
         deleted_u, _ = User.objects.filter(email__in=emails).delete()
         self.stdout.write(f"  Deleted {deleted_u} school user(s).")
+
+        zone_names = [z["zone_name"] for z in TRANSPORT_ZONES]
+        deleted_z, _ = TransportZone.objects.filter(zone_name__in=zone_names).delete()
+        self.stdout.write(f"  Deleted {deleted_z} transport zone(s).")
 
     def _seed_categories(self):
         self.stdout.write("\nSeeding equipment categories …")
@@ -582,7 +642,26 @@ class Command(BaseCommand):
             f"  Pricing rules ready for {len(category_map)} categories."
         )
 
-    def _seed_schools(self):
+    def _seed_transport_zones(self):
+        self.stdout.write("\nSeeding transport zones …")
+        zone_map = {}
+        for data in TRANSPORT_ZONES:
+            zone, created = TransportZone.objects.get_or_create(
+                zone_name=data["zone_name"],
+                defaults={
+                    "description": data["description"],
+                    "base_transport_fee": data["base_transport_fee"],
+                    "is_active": True,
+                },
+            )
+            action = "created" if created else "exists "
+            self.stdout.write(
+                f"  [{action}] {zone.zone_name}  (KES {zone.base_transport_fee})"
+            )
+            zone_map[zone.zone_name] = zone
+        return zone_map
+
+    def _seed_schools(self, zone_map):
         self.stdout.write("\nSeeding school accounts …")
         for data in SCHOOLS:
             user, created = User.objects.get_or_create(
@@ -606,7 +685,9 @@ class Command(BaseCommand):
                     "school_name": data["school_name"],
                     "registration_number": data["registration_number"],
                     "physical_address": data["physical_address"],
+                    "town": data.get("town", ""),
                     "county": data["county"],
+                    "transport_zone": zone_map.get(data.get("zone_name")),
                     "contact_person": data["contact_person"],
                     "contact_designation": data["contact_designation"],
                     "credit_limit": data["credit_limit"],
@@ -616,9 +697,10 @@ class Command(BaseCommand):
 
             u_action = "created" if created else "exists "
             p_action = "created" if p_created else "exists "
+            zone_label = data.get("zone_name", "—")
             self.stdout.write(
                 f"  [user {u_action}] [profile {p_action}] "
-                f"{data['school_name']}  ({data['email']})"
+                f"{data['school_name']}  ({data['email']})  zone: {zone_label}"
             )
 
         self.stdout.write(
