@@ -64,6 +64,7 @@ def admin_update_school_profile(profile: SchoolProfile, data: dict) -> SchoolPro
         "county",
         "contact_person",
         "contact_designation",
+        "transport_zone",
         "credit_limit",
         "account_status",
     }
