@@ -43,9 +43,10 @@ class BookingViewSet(viewsets.ModelViewSet):
     SCHOOL users can see/create/cancel their own bookings.
     ADMIN users can see all and manage statuses.
     """
-
     permission_classes = [IsAuthenticated]
-
+    filterset_fields = ("status",)
+    search_fields = ("booking_reference", "school_profile__school_name", "school_profile__user__email")
+    ordering_fields = ("created_at", "pickup_date", "return_date", "status", "total_amount")
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Booking.objects.none()
