@@ -32,7 +32,6 @@ def get_dashboard_metrics() -> dict:
     total_bookings = Booking.objects.count()
     active_bookings = Booking.objects.filter(
         status__in=[
-            BookingStatus.APPROVED,
             BookingStatus.RESERVED,
             BookingStatus.DISPATCHED,
             BookingStatus.IN_USE,

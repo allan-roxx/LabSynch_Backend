@@ -76,7 +76,6 @@ def get_available_quantity(equipment_id: str, start_date: date, end_date: date) 
 
     overlapping_statuses = [
         BookingStatus.PENDING,
-        BookingStatus.APPROVED,
         BookingStatus.RESERVED,
         BookingStatus.DISPATCHED,
         BookingStatus.IN_USE,
@@ -260,25 +259,9 @@ def create_booking(
 # ---------------------------------------------------------------------------
 
 @transaction.atomic
-def approve_booking(booking: Booking, admin_user: User) -> Booking:
-    """Admin approves a PENDING booking -> APPROVED."""
-    _validate_transition(booking, BookingStatus.APPROVED)
-    booking.status = BookingStatus.APPROVED
-    booking.save(update_fields=["status", "updated_at"])
-
-    log_action(
-        action=AuditLog.Action.APPROVE,
-        instance=booking,
-        actor=admin_user,
-        changes={"status": [BookingStatus.PENDING, BookingStatus.APPROVED]},
-    )
-    return booking
-
-
-@transaction.atomic
 def cancel_booking(booking: Booking, user: User) -> Booking:
     """
-    Cancels a PENDING, APPROVED, or RESERVED booking and restores availability.
+    Cancels a PENDING or RESERVED booking and restores availability.
     """
     if booking.school_profile.user != user and user.user_type != "ADMIN":
         raise ValidationError({"detail": "You do not have permission to cancel this booking."})

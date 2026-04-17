@@ -52,8 +52,8 @@ def initiate_mpesa_payment(booking: Booking, phone_number: str) -> Payment:
     Initiates an STK Push to the user's phone for the requested booking.
     Records a PENDING payment locally.
     """
-    if booking.status != BookingStatus.APPROVED:
-        raise ValidationError({"booking": f"Cannot pay for booking in {booking.status} state. Booking must be APPROVED first."})
+    if booking.status != BookingStatus.PENDING:
+        raise ValidationError({"booking": f"Cannot pay for booking in {booking.status} state. Booking must be pending before payment."})
         
     amount = int(booking.total_amount)
     if amount <= 0:

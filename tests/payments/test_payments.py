@@ -25,7 +25,7 @@ def setup_data(db):
         school_profile=profile,
         pickup_date="2026-05-01",
         return_date="2026-05-05",
-        status=BookingStatus.APPROVED,
+        status=BookingStatus.PENDING,
         total_amount="1500.00",
     )
     return {"user": user, "booking": booking}

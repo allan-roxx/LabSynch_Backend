@@ -25,7 +25,6 @@ from .serializers import (
 )
 from .services import (
     add_or_update_cart_item,
-    approve_booking,
     cancel_booking,
     checkout_cart,
     clear_cart,
@@ -116,7 +115,7 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
-        """Cancel a PENDING/APPROVED/RESERVED booking."""
+        """Cancel a PENDING or RESERVED booking."""
         booking = self.get_object()
         cancelled_booking = cancel_booking(booking, request.user)
         serializer = BookingReadSerializer(cancelled_booking)
@@ -124,19 +123,6 @@ class BookingViewSet(viewsets.ModelViewSet):
             data=serializer.data,
             message="Booking cancelled successfully.",
         )
-
-    @extend_schema(
-        request=None,
-        responses={200: BookingReadSerializer},
-        summary="Approve a PENDING booking (admin only)",
-    )
-    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAdminUser])
-    def approve(self, request, pk=None):
-        """Admin approves a PENDING booking -> APPROVED."""
-        booking = self.get_object()
-        approved = approve_booking(booking, request.user)
-        serializer = BookingReadSerializer(approved)
-        return success_response(data=serializer.data, message="Booking approved successfully.")
 
     @extend_schema(
         request=None,

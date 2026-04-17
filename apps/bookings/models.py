@@ -8,7 +8,6 @@ from common.models import BaseModel
 
 class BookingStatus(models.TextChoices):
     PENDING = "PENDING", "Pending"
-    APPROVED = "APPROVED", "Approved"
     RESERVED = "RESERVED", "Reserved (Paid)"
     DISPATCHED = "DISPATCHED", "Dispatched"
     IN_USE = "IN_USE", "In Use"
@@ -20,8 +19,7 @@ class BookingStatus(models.TextChoices):
 
 # Valid state transitions (from → set of allowed targets)
 BOOKING_STATE_MACHINE = {
-    BookingStatus.PENDING: {BookingStatus.APPROVED, BookingStatus.CANCELLED},
-    BookingStatus.APPROVED: {BookingStatus.RESERVED, BookingStatus.CANCELLED},
+    BookingStatus.PENDING: {BookingStatus.RESERVED, BookingStatus.CANCELLED},
     BookingStatus.RESERVED: {BookingStatus.DISPATCHED, BookingStatus.IN_USE, BookingStatus.CANCELLED},
     BookingStatus.DISPATCHED: {BookingStatus.IN_USE},
     BookingStatus.IN_USE: {BookingStatus.RETURNED, BookingStatus.OVERDUE},
