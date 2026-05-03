@@ -123,19 +123,19 @@ def return_equipment(
         has_damage=has_damage,
     )
 
-    # Calculate overdue penalty if the booking was flagged OVERDUE at return time
+    # Calculate overdue penalty whenever equipment is returned past the agreed return_date,
+    # regardless of whether the booking status was OVERDUE or still IN_USE.
     overdue_penalty = Decimal("0.00")
-    if prev_status == BookingStatus.OVERDUE:
-        actual_return_date = timezone.now().date()
-        overdue_days = max(0, (actual_return_date - booking.return_date).days)
-        if overdue_days > 0:
-            for item in booking.booking_items.select_related("equipment"):
-                overdue_penalty += (
-                    item.unit_price
-                    * item.equipment.overdue_penalty_rate
-                    * overdue_days
-                    * item.quantity
-                )
+    actual_return_date = timezone.now().date()
+    overdue_days = max(0, (actual_return_date - booking.return_date).days)
+    if overdue_days > 0:
+        for item in booking.booking_items.select_related("equipment"):
+            overdue_penalty += (
+                item.unit_price
+                * item.equipment.overdue_penalty_rate
+                * overdue_days
+                * item.quantity
+            )
 
     booking.status = BookingStatus.RETURNED
     booking.overdue_penalty = overdue_penalty
@@ -160,5 +160,8 @@ def return_equipment(
         if eq:
             eq.available_quantity += item.quantity
             eq.save(update_fields=["available_quantity", "updated_at"])
+
+    from apps.notifications.tasks import send_equipment_returned_notification
+    send_equipment_returned_notification.delay(str(booking.id))
 
     return return_record

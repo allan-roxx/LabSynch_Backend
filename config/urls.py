@@ -38,6 +38,7 @@ urlpatterns = [
     path("api/", include("apps.maintenance.urls")),
     path("api/", include("apps.audit.urls")),
     path("api/", include("apps.reports.urls")),
+    path("api/", include("apps.notifications.urls")),
 ]
 
 from django.conf import settings

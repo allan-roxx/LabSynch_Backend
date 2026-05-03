@@ -39,6 +39,7 @@ class BookingItemReadSerializer(serializers.ModelSerializer):
 class BookingReadSerializer(serializers.ModelSerializer):
     booking_items = BookingItemReadSerializer(many=True, read_only=True)
     school_name = serializers.CharField(source="school_profile.school_name", read_only=True)
+    accruing_penalty = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -50,12 +51,44 @@ class BookingReadSerializer(serializers.ModelSerializer):
             "return_date",
             "status",
             "total_amount",
+            "transport_cost",
+            "overdue_penalty",
+            "penalty_cleared",
+            "penalty_carried_forward",
+            "accruing_penalty",
             "special_instructions",
             "requires_transport",
-            "transport_cost",
             "created_at",
             "booking_items",
         ]
+
+    def get_accruing_penalty(self, obj) -> str:
+        """
+        For IN_USE or OVERDUE bookings that are past their return_date, returns
+        the currently accruing penalty (recalculated live based on today's date).
+        Returns '0.00' for all other statuses.
+        """
+        from django.utils import timezone
+        from decimal import Decimal
+        from .models import BookingStatus
+
+        if obj.status not in (BookingStatus.IN_USE, BookingStatus.OVERDUE):
+            return "0.00"
+
+        today = timezone.now().date()
+        overdue_days = max(0, (today - obj.return_date).days)
+        if overdue_days == 0:
+            return "0.00"
+
+        penalty = Decimal("0.00")
+        for item in obj.booking_items.select_related("equipment"):
+            penalty += (
+                item.unit_price
+                * item.equipment.overdue_penalty_rate
+                * overdue_days
+                * item.quantity
+            )
+        return str(penalty)
 
 
 class AvailabilityCheckSerializer(serializers.Serializer):

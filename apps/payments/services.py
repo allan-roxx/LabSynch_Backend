@@ -184,6 +184,16 @@ def process_mpesa_callback(payload: dict):
             booking.status = BookingStatus.RESERVED
             booking.save(update_fields=["status", "updated_at"])
 
+            # If this booking carried forward unsettled penalties, clear them now
+            # that payment is confirmed. The school has paid their debt.
+            if booking.penalty_carried_forward > 0:
+                from apps.bookings.services import clear_school_penalties
+                cleared = clear_school_penalties(booking.school_profile)
+                logger.info(
+                    f"Cleared penalties on {cleared} booking(s) for school "
+                    f"{booking.school_profile.id} via payment {payment.transaction_ref}"
+                )
+
             logger.info(f"Booking {booking.booking_reference} marked RESERVED via M-Pesa tx {payment.mpesa_transaction_id}")
 
             from apps.notifications.tasks import send_payment_receipt

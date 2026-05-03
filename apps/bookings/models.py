@@ -68,6 +68,19 @@ class Booking(BaseModel):
         default=0,
         help_text="Penalty charged for returning equipment past the agreed return_date.",
     )
+    penalty_cleared = models.BooleanField(
+        default=False,
+        help_text="True once the overdue penalty on this booking has been settled.",
+    )
+    penalty_carried_forward = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text=(
+            "Total outstanding overdue penalties from previous bookings rolled into "
+            "this booking's total. Paid alongside the regular booking amount."
+        ),
+    )
 
     class Meta:
         ordering = ["-created_at"]

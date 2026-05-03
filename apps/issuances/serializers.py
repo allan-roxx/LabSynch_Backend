@@ -3,6 +3,7 @@ Serializers for Issuances app.
 """
 
 from rest_framework import serializers
+from apps.bookings.models import Booking, BookingStatus
 from .models import DeliveryStatus, EquipmentIssuance, EquipmentReturn
 
 
@@ -29,6 +30,12 @@ class EquipmentIssuanceReadSerializer(serializers.ModelSerializer):
 
 class EquipmentIssuanceCreateSerializer(serializers.ModelSerializer):
     """Admin writes only booking and received_by. issued_by is inferred."""
+
+    # Override the auto-generated field to strip the UniqueValidator that
+    # ModelSerializer adds for OneToOneField. The service handles the
+    # DISPATCHED → IN_USE re-submission case itself.
+    booking = serializers.PrimaryKeyRelatedField(queryset=Booking.objects.all())
+
     class Meta:
         model = EquipmentIssuance
         fields = [
@@ -37,6 +44,14 @@ class EquipmentIssuanceCreateSerializer(serializers.ModelSerializer):
             "issue_notes",
             "issue_photo_url",
         ]
+
+    def validate_booking(self, booking):
+        if booking.status not in (BookingStatus.RESERVED, BookingStatus.DISPATCHED):
+            raise serializers.ValidationError(
+                f"Cannot issue equipment. Booking is in '{booking.status}' state; "
+                "requires RESERVED or DISPATCHED."
+            )
+        return booking
 
 
 class EquipmentIssuanceDeliverySerializer(serializers.Serializer):

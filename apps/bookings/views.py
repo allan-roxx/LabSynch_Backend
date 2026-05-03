@@ -25,6 +25,7 @@ from .serializers import (
 )
 from .services import (
     add_or_update_cart_item,
+    admin_clear_booking_penalty,
     cancel_booking,
     checkout_cart,
     clear_cart,
@@ -137,6 +138,23 @@ class BookingViewSet(viewsets.ModelViewSet):
         completed = complete_booking(booking, request.user)
         serializer = BookingReadSerializer(completed)
         return success_response(data=serializer.data, message="Booking completed successfully.")
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAdminUser])
+    def clear_penalty(self, request, pk=None):
+        """Admin marks the overdue penalty on a booking as settled.
+        Also removes the penalty from any PENDING booking that carried it forward."""
+        booking = self.get_object()
+        try:
+            updated_booking = admin_clear_booking_penalty(booking)
+        except ValidationError as exc:
+            field_errors = exc.message_dict if hasattr(exc, "message_dict") else {"non_field_errors": [str(exc)]}
+            return error_response(
+                message=next(iter(field_errors.values()))[0] if field_errors else "Validation error.",
+                errors=field_errors,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = BookingReadSerializer(updated_booking)
+        return success_response(data=serializer.data, message="Overdue penalty marked as cleared.")
 
     @extend_schema(
         request=None,

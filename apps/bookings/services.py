@@ -40,17 +40,20 @@ def _validate_transition(booking: Booking, target_status: str):
 
 def check_school_liability(school_profile: SchoolProfile):
     """
-    Block booking creation if the school has unresolved damage liabilities.
-    Raises ValidationError when outstanding charges exist.
+    Block booking creation if the school has unresolved liabilities:
+      - Unpaid/charged damage reports
+      - Any booking still in OVERDUE status (equipment not yet returned)
+      - Any RETURNED booking with an unsettled overdue penalty
+    Raises ValidationError when any outstanding charge exists.
     """
     from apps.damages.models import DamageReport, ResolutionStatus
 
-    outstanding = DamageReport.objects.filter(
+    outstanding_damage = DamageReport.objects.filter(
         equipment_return__booking__school_profile=school_profile,
         resolution_status__in=[ResolutionStatus.PENDING, ResolutionStatus.CHARGED],
     ).exists()
 
-    if outstanding or school_profile.liability_status == LiabilityStatus.HAS_OUTSTANDING:
+    if outstanding_damage or school_profile.liability_status == LiabilityStatus.HAS_OUTSTANDING:
         raise ValidationError(
             {
                 "liability": (
@@ -59,6 +62,27 @@ def check_school_liability(school_profile: SchoolProfile):
                 )
             }
         )
+
+    # Block if any booking is still OVERDUE (equipment not returned)
+    has_overdue = Booking.objects.filter(
+        school_profile=school_profile,
+        status=BookingStatus.OVERDUE,
+    ).exists()
+
+    if has_overdue:
+        raise ValidationError(
+            {
+                "liability": (
+                    "This school has overdue equipment that has not been returned. "
+                    "New bookings are blocked until all overdue equipment is returned."
+                )
+            }
+        )
+
+    # Note: schools with unsettled overdue penalties are NOT blocked here.
+    # Instead, the outstanding penalty total is rolled into the new booking
+    # as `penalty_carried_forward` inside create_booking(), so the school
+    # pays their debt transparently as part of the next payment.
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +160,78 @@ def generate_booking_reference() -> str:
     year = timezone.now().year
     count = Booking.objects.filter(created_at__year=year).count() + 1
     return f"BK-{year}-{count:04d}"
+
+
+def _compute_outstanding_penalties(school_profile: SchoolProfile) -> Decimal:
+    """
+    Sum all unsettled overdue penalties from previous RETURNED/COMPLETED bookings.
+    Returns Decimal("0.00") if none.
+    """
+    result = Booking.objects.filter(
+        school_profile=school_profile,
+        status__in=[BookingStatus.RETURNED, BookingStatus.COMPLETED],
+        overdue_penalty__gt=0,
+        penalty_cleared=False,
+    ).aggregate(total=Sum("overdue_penalty"))["total"]
+    return result if result is not None else Decimal("0.00")
+
+
+def clear_school_penalties(school_profile: SchoolProfile) -> int:
+    """
+    Mark all unsettled overdue penalties for a school as cleared.
+    Called automatically when a booking that carried forward penalties is paid.
+    Returns the number of bookings updated.
+    """
+    updated = Booking.objects.filter(
+        school_profile=school_profile,
+        overdue_penalty__gt=0,
+        penalty_cleared=False,
+    ).exclude(
+        # Don't clear the booking that is currently being paid (it has no overdue_penalty yet)
+        status=BookingStatus.PENDING,
+    ).update(penalty_cleared=True)
+    return updated
+
+
+@transaction.atomic
+def admin_clear_booking_penalty(booking: Booking) -> Booking:
+    """
+    Admin clears the overdue penalty on a specific booking.
+    Also recalculates and patches any PENDING booking for the same school
+    that previously carried this penalty forward, so the school no longer
+    has to pay it in their next transaction.
+    """
+    if booking.overdue_penalty <= 0:
+        raise ValidationError({"penalty": "This booking has no overdue penalty to clear."})
+    if booking.penalty_cleared:
+        raise ValidationError({"penalty": "Penalty is already cleared."})
+
+    # Mark this booking's penalty as settled
+    booking.penalty_cleared = True
+    booking.save(update_fields=["penalty_cleared", "updated_at"])
+
+    # Recompute outstanding penalties for this school — now lower (or zero)
+    school_profile = booking.school_profile
+    remaining_penalty = _compute_outstanding_penalties(school_profile)
+
+    # Patch any PENDING bookings that baked in the old (higher) penalty total
+    pending_with_carried = Booking.objects.filter(
+        school_profile=school_profile,
+        status=BookingStatus.PENDING,
+        penalty_carried_forward__gt=0,
+    )
+    for pending in pending_with_carried:
+        old_carried = pending.penalty_carried_forward
+        new_carried = remaining_penalty  # recomputed after the clear
+        diff = old_carried - new_carried  # amount being removed
+        pending.penalty_carried_forward = new_carried
+        pending.total_amount = pending.total_amount - diff
+        pending.save(update_fields=["penalty_carried_forward", "total_amount", "updated_at"])
+
+    from apps.notifications.tasks import send_penalty_cleared_notification
+    send_penalty_cleared_notification.delay(str(booking.id))
+
+    return booking
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +327,11 @@ def create_booking(
             )
         )
 
+    # Roll any outstanding penalties into this booking.
+    # The school pays them as part of the same M-Pesa transaction.
+    penalty_carried_forward = _compute_outstanding_penalties(school_profile)
+    total_amount += penalty_carried_forward
+
     booking = Booking.objects.create(
         booking_reference=generate_booking_reference(),
         school_profile=school_profile,
@@ -241,6 +342,7 @@ def create_booking(
         status=BookingStatus.PENDING,
         requires_transport=requires_transport,
         transport_cost=transport_cost,
+        penalty_carried_forward=penalty_carried_forward,
     )
 
     for bi in booking_items_to_create:
@@ -296,6 +398,9 @@ def cancel_booking(booking: Booking, user: User) -> Booking:
         if eq:
             eq.available_quantity += item.quantity
             eq.save(update_fields=["available_quantity", "updated_at"])
+
+    from apps.notifications.tasks import send_booking_cancelled_notification
+    send_booking_cancelled_notification.delay(str(booking.id))
 
     return booking
 
