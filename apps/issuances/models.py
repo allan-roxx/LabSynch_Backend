@@ -5,6 +5,13 @@ from apps.users.models import User
 from common.models import BaseModel
 
 
+class DeliveryStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending Delivery"
+    ON_TIME = "ON_TIME", "Delivered On Time"
+    LATE = "LATE", "Delivered Late"
+    FAILED = "FAILED", "Delivery Failed"
+
+
 class EquipmentIssuance(BaseModel):
     """
     Records equipment handover from Labsych Admin to a School user.
@@ -29,6 +36,17 @@ class EquipmentIssuance(BaseModel):
     issued_at = models.DateTimeField(auto_now_add=True)
     issue_notes = models.TextField(blank=True, default="")
     issue_photo_url = models.URLField(max_length=500, blank=True, default="")
+    delivery_status = models.CharField(
+        max_length=20,
+        choices=DeliveryStatus.choices,
+        default=DeliveryStatus.PENDING,
+        help_text="Outcome of the physical delivery/handover.",
+    )
+    delivery_notes = models.TextField(
+        blank=True,
+        default="",
+        help_text="Notes on late or failed delivery — reason, follow-up action, etc.",
+    )
 
     class Meta:
         ordering = ["-issued_at"]

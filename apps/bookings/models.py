@@ -62,6 +62,12 @@ class Booking(BaseModel):
         default=0,
         help_text="Delivery fee (KES), 0 if school handles own transport.",
     )
+    overdue_penalty = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Penalty charged for returning equipment past the agreed return_date.",
+    )
 
     class Meta:
         ordering = ["-created_at"]

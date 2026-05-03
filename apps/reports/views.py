@@ -34,6 +34,9 @@ class DashboardMetricsView(APIView):
             "total_schools": drf_serializers.IntegerField(),
             "total_equipment": drf_serializers.IntegerField(),
             "pending_damage_reports": drf_serializers.IntegerField(),
+            "today_pickups": drf_serializers.IntegerField(),
+            "today_returns": drf_serializers.IntegerField(),
+            "today_pending_payment": drf_serializers.IntegerField(),
         })},
         summary="Admin dashboard KPIs",
     )

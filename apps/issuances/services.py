@@ -2,6 +2,8 @@
 Business logic for Equipment Issuances (dispatch) and Returns.
 """
 
+from decimal import Decimal
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -110,6 +112,8 @@ def return_equipment(
     if hasattr(booking, 'equipment_return'):
         raise ValidationError({"booking": "Equipment already returned for this booking."})
 
+    prev_status = booking.status
+
     return_record = EquipmentReturn.objects.create(
         booking=booking,
         received_by=received_by,
@@ -119,8 +123,23 @@ def return_equipment(
         has_damage=has_damage,
     )
 
+    # Calculate overdue penalty if the booking was flagged OVERDUE at return time
+    overdue_penalty = Decimal("0.00")
+    if prev_status == BookingStatus.OVERDUE:
+        actual_return_date = timezone.now().date()
+        overdue_days = max(0, (actual_return_date - booking.return_date).days)
+        if overdue_days > 0:
+            for item in booking.booking_items.select_related("equipment"):
+                overdue_penalty += (
+                    item.unit_price
+                    * item.equipment.overdue_penalty_rate
+                    * overdue_days
+                    * item.quantity
+                )
+
     booking.status = BookingStatus.RETURNED
-    booking.save(update_fields=["status", "updated_at"])
+    booking.overdue_penalty = overdue_penalty
+    booking.save(update_fields=["status", "overdue_penalty", "updated_at"])
 
     log_action(
         action=AuditLog.Action.RETURN,

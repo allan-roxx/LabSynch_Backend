@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 from django.db.models import F, Q
 
@@ -79,6 +81,16 @@ class Equipment(BaseModel):
     )
     storage_location = models.CharField(max_length=255, blank=True, default="")
     is_active = models.BooleanField(default=True)
+    is_consumable = models.BooleanField(
+        default=False,
+        help_text="Consumable items (reagents, paper) are single-use. No physical return expected.",
+    )
+    overdue_penalty_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("1.50"),
+        help_text="Multiplier on unit_price_per_day charged per overdue day (1.50 = 150% of daily rate).",
+    )
 
     # Inventory enrichment
     acquisition_cost = models.DecimalField(

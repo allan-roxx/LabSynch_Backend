@@ -23,7 +23,11 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from apps.bookings.models import Booking, BookingItem, CartItem
+from apps.damages.models import DamageReport
 from apps.equipment.models import Equipment, EquipmentCategory, PricingRule, TransportZone
+from apps.issuances.models import EquipmentIssuance, EquipmentReturn
+from apps.payments.models import Payment
 from apps.users.models import AccountStatus, SchoolProfile, UserType
 
 logger = logging.getLogger(__name__)
@@ -83,6 +87,14 @@ CATEGORIES = [
         ),
         "display_order": 6,
     },
+    {
+        "category_name": "Consumables",
+        "description": (
+            "Single-use laboratory reagents, indicator solutions, and consumable supplies. "
+            "These items are not returned after use."
+        ),
+        "display_order": 7,
+    },
 ]
 
 # Equipment per category. Keys map to EquipmentCategory.category_name.
@@ -95,6 +107,7 @@ EQUIPMENT = {
             "total_quantity": 50,
             "available_quantity": 50,
             "unit_price_per_day": "40.00",
+            "acquisition_cost": "450.00",
             "condition": "GOOD",
             "storage_location": "Rack A1",
         },
@@ -105,6 +118,7 @@ EQUIPMENT = {
             "total_quantity": 40,
             "available_quantity": 40,
             "unit_price_per_day": "30.00",
+            "acquisition_cost": "600.00",
             "condition": "GOOD",
             "storage_location": "Rack A1",
         },
@@ -115,6 +129,7 @@ EQUIPMENT = {
             "total_quantity": 30,
             "available_quantity": 30,
             "unit_price_per_day": "40.00",
+            "acquisition_cost": "550.00",
             "condition": "GOOD",
             "storage_location": "Rack A2",
         },
@@ -125,6 +140,7 @@ EQUIPMENT = {
             "total_quantity": 25,
             "available_quantity": 25,
             "unit_price_per_day": "40.00",
+            "acquisition_cost": "700.00",
             "condition": "GOOD",
             "storage_location": "Rack A2",
         },
@@ -135,6 +151,7 @@ EQUIPMENT = {
             "total_quantity": 20,
             "available_quantity": 20,
             "unit_price_per_day": "50.00",
+            "acquisition_cost": "800.00",
             "condition": "GOOD",
             "storage_location": "Rack A3",
         },
@@ -145,6 +162,7 @@ EQUIPMENT = {
             "total_quantity": 60,
             "available_quantity": 60,
             "unit_price_per_day": "80.00",
+            "acquisition_cost": "350.00",
             "condition": "GOOD",
             "storage_location": "Rack A3",
         },
@@ -160,6 +178,7 @@ EQUIPMENT = {
             "total_quantity": 15,
             "available_quantity": 15,
             "unit_price_per_day": "120.00",
+            "acquisition_cost": "18000.00",
             "condition": "GOOD",
             "storage_location": "Cabinet B1",
         },
@@ -173,6 +192,7 @@ EQUIPMENT = {
             "total_quantity": 10,
             "available_quantity": 10,
             "unit_price_per_day": "100.00",
+            "acquisition_cost": "14000.00",
             "condition": "GOOD",
             "storage_location": "Cabinet B1",
         },
@@ -183,6 +203,7 @@ EQUIPMENT = {
             "total_quantity": 30,
             "available_quantity": 30,
             "unit_price_per_day": "30.00",
+            "acquisition_cost": "450.00",
             "condition": "GOOD",
             "storage_location": "Drawer B2",
         },
@@ -193,6 +214,7 @@ EQUIPMENT = {
             "total_quantity": 8,
             "available_quantity": 8,
             "unit_price_per_day": "50.00",
+            "acquisition_cost": "3500.00",
             "condition": "GOOD",
             "storage_location": "Cabinet B2",
         },
@@ -205,6 +227,7 @@ EQUIPMENT = {
             "total_quantity": 10,
             "available_quantity": 10,
             "unit_price_per_day": "50.00",
+            "acquisition_cost": "4500.00",
             "condition": "GOOD",
             "storage_location": "Cabinet C1",
         },
@@ -215,6 +238,7 @@ EQUIPMENT = {
             "total_quantity": 12,
             "available_quantity": 12,
             "unit_price_per_day": "50.00",
+            "acquisition_cost": "2800.00",
             "condition": "GOOD",
             "storage_location": "Cabinet C1",
         },
@@ -225,6 +249,7 @@ EQUIPMENT = {
             "total_quantity": 20,
             "available_quantity": 20,
             "unit_price_per_day": "50.00",
+            "acquisition_cost": "800.00",
             "condition": "GOOD",
             "storage_location": "Drawer C2",
         },
@@ -235,6 +260,7 @@ EQUIPMENT = {
             "total_quantity": 50,
             "available_quantity": 50,
             "unit_price_per_day": "70.00",
+            "acquisition_cost": "250.00",
             "condition": "GOOD",
             "storage_location": "Drawer C2",
         },
@@ -245,6 +271,7 @@ EQUIPMENT = {
             "total_quantity": 15,
             "available_quantity": 15,
             "unit_price_per_day": "80.00",
+            "acquisition_cost": "350.00",
             "condition": "GOOD",
             "storage_location": "Drawer C3",
         },
@@ -257,6 +284,7 @@ EQUIPMENT = {
             "total_quantity": 15,
             "available_quantity": 15,
             "unit_price_per_day": "50.00",
+            "acquisition_cost": "1200.00",
             "condition": "GOOD",
             "storage_location": "Rack D1",
         },
@@ -267,6 +295,7 @@ EQUIPMENT = {
             "total_quantity": 20,
             "available_quantity": 20,
             "unit_price_per_day": "50.00",
+            "acquisition_cost": "1500.00",
             "condition": "GOOD",
             "storage_location": "Rack D1",
         },
@@ -277,6 +306,7 @@ EQUIPMENT = {
             "total_quantity": 40,
             "available_quantity": 40,
             "unit_price_per_day": "40.00",
+            "acquisition_cost": "450.00",
             "condition": "GOOD",
             "storage_location": "Drawer D2",
         },
@@ -287,6 +317,7 @@ EQUIPMENT = {
             "total_quantity": 20,
             "available_quantity": 20,
             "unit_price_per_day": "80.00",
+            "acquisition_cost": "1800.00",
             "condition": "GOOD",
             "storage_location": "Rack D2",
         },
@@ -297,6 +328,7 @@ EQUIPMENT = {
             "total_quantity": 60,
             "available_quantity": 60,
             "unit_price_per_day": "10.00",
+            "acquisition_cost": "150.00",
             "condition": "GOOD",
             "storage_location": "Drawer D3",
         },
@@ -309,6 +341,7 @@ EQUIPMENT = {
             "total_quantity": 25,
             "available_quantity": 25,
             "unit_price_per_day": "40.00",
+            "acquisition_cost": "1600.00",
             "condition": "GOOD",
             "storage_location": "Cabinet E1",
         },
@@ -319,6 +352,7 @@ EQUIPMENT = {
             "total_quantity": 8,
             "available_quantity": 8,
             "unit_price_per_day": "90.00",
+            "acquisition_cost": "8500.00",
             "condition": "GOOD",
             "storage_location": "Cabinet E1",
         },
@@ -329,6 +363,7 @@ EQUIPMENT = {
             "total_quantity": 6,
             "available_quantity": 6,
             "unit_price_per_day": "150.00",
+            "acquisition_cost": "22000.00",
             "condition": "GOOD",
             "storage_location": "Cabinet E2",
         },
@@ -339,6 +374,7 @@ EQUIPMENT = {
             "total_quantity": 30,
             "available_quantity": 30,
             "unit_price_per_day": "50.00",
+            "acquisition_cost": "350.00",
             "condition": "GOOD",
             "storage_location": "Drawer E2",
         },
@@ -349,6 +385,7 @@ EQUIPMENT = {
             "total_quantity": 30,
             "available_quantity": 30,
             "unit_price_per_day": "10.00",
+            "acquisition_cost": "180.00",
             "condition": "GOOD",
             "storage_location": "Drawer E3",
         },
@@ -361,6 +398,7 @@ EQUIPMENT = {
             "total_quantity": 60,
             "available_quantity": 60,
             "unit_price_per_day": "30.00",
+            "acquisition_cost": "600.00",
             "condition": "GOOD",
             "storage_location": "Cabinet F1",
         },
@@ -371,6 +409,7 @@ EQUIPMENT = {
             "total_quantity": 40,
             "available_quantity": 40,
             "unit_price_per_day": "50.00",
+            "acquisition_cost": "1200.00",
             "condition": "GOOD",
             "storage_location": "Cabinet F1",
         },
@@ -381,6 +420,7 @@ EQUIPMENT = {
             "total_quantity": 30,
             "available_quantity": 30,
             "unit_price_per_day": "50.00",
+            "acquisition_cost": "1200.00",
             "condition": "GOOD",
             "storage_location": "Cabinet F1",
         },
@@ -391,6 +431,7 @@ EQUIPMENT = {
             "total_quantity": 80,
             "available_quantity": 80,
             "unit_price_per_day": "30.00",
+            "acquisition_cost": "350.00",
             "condition": "NEW",
             "storage_location": "Cabinet F2",
         },
@@ -401,8 +442,131 @@ EQUIPMENT = {
             "total_quantity": 5,
             "available_quantity": 5,
             "unit_price_per_day": "60.00",
+            "acquisition_cost": "3500.00",
             "condition": "GOOD",
             "storage_location": "Cabinet F2",
+        },
+    ],
+    "Consumables": [
+        {
+            "equipment_name": "Litmus Paper Red (100 strips)",
+            "equipment_code": "EQP-031",
+            "description": "Red litmus paper strips for acid detection, pack of 100.",
+            "total_quantity": 200,
+            "available_quantity": 200,
+            "unit_price_per_day": "30.00",
+            "acquisition_cost": "150.00",
+            "condition": "NEW",
+            "storage_location": "Drawer G1",
+            "is_consumable": True,
+        },
+        {
+            "equipment_name": "Litmus Paper Blue (100 strips)",
+            "equipment_code": "EQP-032",
+            "description": "Blue litmus paper strips for alkali detection, pack of 100.",
+            "total_quantity": 200,
+            "available_quantity": 200,
+            "unit_price_per_day": "30.00",
+            "acquisition_cost": "150.00",
+            "condition": "NEW",
+            "storage_location": "Drawer G1",
+            "is_consumable": True,
+        },
+        {
+            "equipment_name": "Universal Indicator Solution 100 ml",
+            "equipment_code": "EQP-033",
+            "description": "Universal pH indicator solution, 100 ml, colour-coded pH 1–14.",
+            "total_quantity": 50,
+            "available_quantity": 50,
+            "unit_price_per_day": "80.00",
+            "acquisition_cost": "400.00",
+            "condition": "NEW",
+            "storage_location": "Drawer G1",
+            "is_consumable": True,
+        },
+        {
+            "equipment_name": "Methylene Blue Stain 50 ml",
+            "equipment_code": "EQP-034",
+            "description": "Methylene blue biological staining solution, 50 ml, for microscopy.",
+            "total_quantity": 40,
+            "available_quantity": 40,
+            "unit_price_per_day": "100.00",
+            "acquisition_cost": "600.00",
+            "condition": "NEW",
+            "storage_location": "Drawer G2",
+            "is_consumable": True,
+        },
+        {
+            "equipment_name": "Iodine Solution 100 ml",
+            "equipment_code": "EQP-035",
+            "description": "Iodine-potassium iodide solution, 100 ml, for starch testing.",
+            "total_quantity": 40,
+            "available_quantity": 40,
+            "unit_price_per_day": "80.00",
+            "acquisition_cost": "350.00",
+            "condition": "NEW",
+            "storage_location": "Drawer G2",
+            "is_consumable": True,
+        },
+        {
+            "equipment_name": "Benedict's Solution 100 ml",
+            "equipment_code": "EQP-036",
+            "description": "Benedict's qualitative reagent, 100 ml, for reducing sugar detection.",
+            "total_quantity": 30,
+            "available_quantity": 30,
+            "unit_price_per_day": "100.00",
+            "acquisition_cost": "550.00",
+            "condition": "NEW",
+            "storage_location": "Drawer G2",
+            "is_consumable": True,
+        },
+        {
+            "equipment_name": "Distilled Water 5 L",
+            "equipment_code": "EQP-037",
+            "description": "Laboratory-grade distilled water, 5-litre container.",
+            "total_quantity": 30,
+            "available_quantity": 30,
+            "unit_price_per_day": "50.00",
+            "acquisition_cost": "300.00",
+            "condition": "NEW",
+            "storage_location": "Shelf G3",
+            "is_consumable": True,
+        },
+        {
+            "equipment_name": "Sodium Chloride Solution 1 M 500 ml",
+            "equipment_code": "EQP-038",
+            "description": "1 M sodium chloride aqueous solution, 500 ml.",
+            "total_quantity": 20,
+            "available_quantity": 20,
+            "unit_price_per_day": "120.00",
+            "acquisition_cost": "700.00",
+            "condition": "NEW",
+            "storage_location": "Shelf G3",
+            "is_consumable": True,
+        },
+        {
+            "equipment_name": "Filter Paper Pack (100 sheets)",
+            "equipment_code": "EQP-039",
+            "description": "Qualitative filter paper, 90 mm diameter, 100 sheets per pack.",
+            "total_quantity": 60,
+            "available_quantity": 60,
+            "unit_price_per_day": "60.00",
+            "acquisition_cost": "300.00",
+            "condition": "NEW",
+            "storage_location": "Drawer G1",
+            "is_consumable": True,
+        },
+        {
+            "equipment_name": "pH Buffer Solution Set (3 bottles)",
+            "equipment_code": "EQP-040",
+            "description": "pH 4.0, 7.0 and 10.0 calibration buffer solutions — set of three 250 ml bottles.",
+            "total_quantity": 25,
+            "available_quantity": 25,
+            "unit_price_per_day": "150.00",
+            "acquisition_cost": "800.00",
+            "condition": "NEW",
+            "storage_location": "Drawer G2",
+            "is_consumable": True,
         },
     ],
 }
@@ -560,16 +724,57 @@ class Command(BaseCommand):
 
     def _clear_seed_data(self):
         self.stdout.write("Clearing existing seed data …")
+
         codes = [item["equipment_code"] for items in EQUIPMENT.values() for item in items]
-        deleted_eq, _ = Equipment.objects.filter(equipment_code__in=codes).delete()
+        equipment_qs = Equipment.objects.filter(equipment_code__in=codes)
+
+        emails = [s["email"] for s in SCHOOLS]
+        school_profiles = SchoolProfile.objects.filter(user__email__in=emails)
+
+        # Collect all bookings linked to seed equipment or seed school accounts.
+        booking_ids_from_items = BookingItem.objects.filter(
+            equipment__in=equipment_qs
+        ).values_list("booking_id", flat=True)
+        booking_ids_from_schools = Booking.objects.filter(
+            school_profile__in=school_profiles
+        ).values_list("id", flat=True)
+        booking_qs = Booking.objects.filter(
+            id__in=set(list(booking_ids_from_items) + list(booking_ids_from_schools))
+        )
+
+        # Delete in dependency order (most-dependent first).
+        n, _ = DamageReport.objects.filter(booking_item__booking__in=booking_qs).delete()
+        if n:
+            self.stdout.write(f"  Deleted {n} damage report(s).")
+
+        n, _ = EquipmentReturn.objects.filter(booking__in=booking_qs).delete()
+        if n:
+            self.stdout.write(f"  Deleted {n} equipment return(s).")
+
+        n, _ = EquipmentIssuance.objects.filter(booking__in=booking_qs).delete()
+        if n:
+            self.stdout.write(f"  Deleted {n} equipment issuance(s).")
+
+        n, _ = Payment.objects.filter(booking__in=booking_qs).delete()
+        if n:
+            self.stdout.write(f"  Deleted {n} payment(s).")
+
+        n, _ = CartItem.objects.filter(equipment__in=equipment_qs).delete()
+        if n:
+            self.stdout.write(f"  Deleted {n} cart item(s).")
+
+        n, _ = booking_qs.delete()  # cascades BookingItems
+        if n:
+            self.stdout.write(f"  Deleted {n} booking(s) (and their line items).")
+
+        deleted_eq, _ = equipment_qs.delete()
         self.stdout.write(f"  Deleted {deleted_eq} equipment item(s).")
 
         names = [c["category_name"] for c in CATEGORIES]
         deleted_cat, _ = EquipmentCategory.objects.filter(category_name__in=names).delete()
         self.stdout.write(f"  Deleted {deleted_cat} category/categories.")
 
-        emails = [s["email"] for s in SCHOOLS]
-        deleted_u, _ = User.objects.filter(email__in=emails).delete()
+        deleted_u, _ = User.objects.filter(email__in=emails).delete()  # cascades SchoolProfile
         self.stdout.write(f"  Deleted {deleted_u} school user(s).")
 
         zone_names = [z["zone_name"] for z in TRANSPORT_ZONES]
@@ -609,6 +814,8 @@ class Command(BaseCommand):
                         "condition": data["condition"],
                         "storage_location": data["storage_location"],
                         "is_active": True,
+                        "acquisition_cost": data.get("acquisition_cost"),
+                        "is_consumable": data.get("is_consumable", False),
                     },
                 )
                 action = "created" if created else "exists "

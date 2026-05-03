@@ -134,6 +134,11 @@ class EquipmentViewSet(viewsets.ModelViewSet):
     SCHOOL users can read active items, ADMIN users can write and see all.
     """
 
+    filterset_fields = ("category", "condition", "is_consumable", "is_active")
+    search_fields = ("equipment_name", "equipment_code", "description")
+    ordering_fields = ("equipment_name", "unit_price_per_day", "available_quantity", "created_at")
+    ordering = ("equipment_name",)
+
     def get_queryset(self):
         queryset = Equipment.objects.select_related("category").prefetch_related("images")
         if getattr(self.request.user, "user_type", None) != "ADMIN":

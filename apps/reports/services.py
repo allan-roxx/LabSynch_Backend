@@ -55,6 +55,14 @@ def get_dashboard_metrics() -> dict:
         resolution_status=ResolutionStatus.PENDING,
     ).count()
 
+    today = now.date()
+    today_pickups = Booking.objects.filter(pickup_date=today).count()
+    today_returns = Booking.objects.filter(return_date=today).count()
+    today_pending_payment = Booking.objects.filter(
+        status=BookingStatus.PENDING,
+        pickup_date=today,
+    ).count()
+
     return {
         "total_bookings": total_bookings,
         "active_bookings": active_bookings,
@@ -64,6 +72,9 @@ def get_dashboard_metrics() -> dict:
         "total_schools": total_schools,
         "total_equipment": total_equipment,
         "pending_damage_reports": pending_damage_reports,
+        "today_pickups": today_pickups,
+        "today_returns": today_returns,
+        "today_pending_payment": today_pending_payment,
     }
 
 

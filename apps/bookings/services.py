@@ -159,6 +159,12 @@ def create_booking(
     if return_date <= pickup_date:
         raise ValidationError({"return_date": "Return date must be after pickup date."})
 
+    today = timezone.now().date()
+    if pickup_date <= today:
+        raise ValidationError(
+            {"pickup_date": "Bookings must be made at least 1 day in advance. Same-day bookings are not accepted due to logistics requirements."}
+        )
+
     try:
         school_profile = SchoolProfile.objects.select_related("transport_zone").get(user=user)
     except SchoolProfile.DoesNotExist:

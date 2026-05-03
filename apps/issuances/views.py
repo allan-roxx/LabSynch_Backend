@@ -3,6 +3,7 @@ Views for Issuances and Returns.
 """
 
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 
@@ -10,6 +11,7 @@ from common.utils import success_response
 from .models import EquipmentIssuance, EquipmentReturn
 from .serializers import (
     EquipmentIssuanceCreateSerializer,
+    EquipmentIssuanceDeliverySerializer,
     EquipmentIssuanceReadSerializer,
     EquipmentReturnCreateSerializer,
     EquipmentReturnReadSerializer,
@@ -61,6 +63,26 @@ class EquipmentIssuanceViewSet(viewsets.ModelViewSet):
             data=read_serializer.data,
             message="Equipment issued successfully.",
             status_code=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["patch"])
+    def mark_delivery(self, request, pk=None):
+        """Admin marks the delivery outcome: ON_TIME, LATE, or FAILED."""
+        if request.user.user_type != "ADMIN":
+            return success_response(
+                data=None,
+                message="Only administrators can update delivery status.",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+        issuance = self.get_object()
+        serializer = EquipmentIssuanceDeliverySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        issuance.delivery_status = serializer.validated_data["delivery_status"]
+        issuance.delivery_notes = serializer.validated_data.get("delivery_notes", issuance.delivery_notes)
+        issuance.save(update_fields=["delivery_status", "delivery_notes", "updated_at"])
+        return success_response(
+            data=EquipmentIssuanceReadSerializer(issuance).data,
+            message="Delivery status updated.",
         )
 
 

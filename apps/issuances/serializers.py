@@ -3,7 +3,7 @@ Serializers for Issuances app.
 """
 
 from rest_framework import serializers
-from .models import EquipmentIssuance, EquipmentReturn
+from .models import DeliveryStatus, EquipmentIssuance, EquipmentReturn
 
 
 class EquipmentIssuanceReadSerializer(serializers.ModelSerializer):
@@ -22,6 +22,8 @@ class EquipmentIssuanceReadSerializer(serializers.ModelSerializer):
             "issued_at",
             "issue_notes",
             "issue_photo_url",
+            "delivery_status",
+            "delivery_notes",
         ]
 
 
@@ -35,6 +37,12 @@ class EquipmentIssuanceCreateSerializer(serializers.ModelSerializer):
             "issue_notes",
             "issue_photo_url",
         ]
+
+
+class EquipmentIssuanceDeliverySerializer(serializers.Serializer):
+    """Admin updates the delivery outcome for an existing issuance record."""
+    delivery_status = serializers.ChoiceField(choices=DeliveryStatus.choices)
+    delivery_notes = serializers.CharField(required=False, allow_blank=True)
 
 
 class EquipmentReturnReadSerializer(serializers.ModelSerializer):
