@@ -147,9 +147,9 @@ def get_equipment_report() -> list[dict]:
     """Per-equipment utilisation stats: times booked, revenue generated."""
     items = (
         BookingItem.objects.values(
-            equipment_id=F("equipment__id"),
-            equipment_name=F("equipment__equipment_name"),
-            equipment_code=F("equipment__equipment_code"),
+            "equipment__id",
+            "equipment__equipment_name",
+            "equipment__equipment_code",
         )
         .annotate(
             times_booked=Count("id"),
@@ -158,7 +158,17 @@ def get_equipment_report() -> list[dict]:
         )
         .order_by("-times_booked")
     )
-    return list(items)
+    return [
+        {
+            "equipment_id": row["equipment__id"],
+            "equipment_name": row["equipment__equipment_name"],
+            "equipment_code": row["equipment__equipment_code"],
+            "times_booked": row["times_booked"],
+            "total_quantity_booked": row["total_quantity_booked"],
+            "total_revenue": row["total_revenue"],
+        }
+        for row in items
+    ]
 
 
 # ---------------------------------------------------------------------------
