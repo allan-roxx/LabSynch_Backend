@@ -8,7 +8,10 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+
+from common.exports import export_csv, export_pdf
+from common.permissions import IsAdminUser
 
 from apps.bookings.models import Booking
 from rest_framework.exceptions import ValidationError
@@ -94,6 +97,39 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
             filename=f"receipt_{payment.transaction_ref}.pdf",
             content_type="application/pdf",
         )
+
+    _EXPORT_HEADERS = [
+        "ID", "Transaction Ref", "Booking Ref", "Method", "Amount",
+        "Status", "M-Pesa Receipt", "Phone", "Completed At",
+    ]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("fmt", str, description="csv or pdf", default="csv")],
+        responses={200: None},
+        summary="Export payments as CSV or PDF (admin only)",
+    )
+    @action(detail=False, methods=["get"], url_path="export", url_name="export",
+            permission_classes=[IsAuthenticated, IsAdminUser])
+    def export(self, request):
+        fmt = request.query_params.get("fmt", "csv").lower()
+        qs = Payment.objects.select_related("booking").all()
+        rows = [
+            {
+                "ID": str(p.id),
+                "Transaction Ref": p.transaction_ref,
+                "Booking Ref": p.booking.booking_reference if p.booking else "",
+                "Method": p.payment_method,
+                "Amount": str(p.amount_paid),
+                "Status": p.payment_status,
+                "M-Pesa Receipt": p.mpesa_transaction_id or "",
+                "Phone": p.mpesa_phone_number or "",
+                "Completed At": p.completed_at.strftime("%Y-%m-%d %H:%M") if p.completed_at else "",
+            }
+            for p in qs
+        ]
+        if fmt == "pdf":
+            return export_pdf("Payments Report", self._EXPORT_HEADERS, rows, "payments")
+        return export_csv(self._EXPORT_HEADERS, rows, "payments")
 
 
 @extend_schema(exclude=True)

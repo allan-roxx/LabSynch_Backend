@@ -4,12 +4,13 @@ Views for Booking app.
 
 from django.core.exceptions import ValidationError
 from django.http import FileResponse
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from common.exports import export_csv, export_pdf
 from common.pdf import generate_contract_pdf
 from common.permissions import IsAdminUser, IsSchoolUser
 from common.utils import error_response, success_response
@@ -172,6 +173,42 @@ class BookingViewSet(viewsets.ModelViewSet):
             filename=f"contract_{booking.booking_reference}.pdf",
             content_type="application/pdf",
         )
+
+    _EXPORT_HEADERS = [
+        "ID", "Reference", "School", "Status", "Pickup Date", "Return Date",
+        "Total Amount", "Overdue Penalty", "Penalty Cleared", "Created At",
+    ]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("fmt", str, description="csv or pdf", default="csv")],
+        responses={200: None},
+        summary="Export bookings as CSV or PDF (admin only)",
+    )
+    @action(detail=False, methods=["get"], url_path="export", url_name="export",
+            permission_classes=[IsAuthenticated, IsAdminUser])
+    def export(self, request):
+        fmt = request.query_params.get("fmt", "csv").lower()
+        qs = self.filter_queryset(
+            Booking.objects.select_related("school_profile").all()
+        )
+        rows = [
+            {
+                "ID": str(b.id),
+                "Reference": b.booking_reference,
+                "School": b.school_profile.school_name,
+                "Status": b.status,
+                "Pickup Date": str(b.pickup_date),
+                "Return Date": str(b.return_date),
+                "Total Amount": str(b.total_amount),
+                "Overdue Penalty": str(b.overdue_penalty),
+                "Penalty Cleared": b.penalty_cleared,
+                "Created At": b.created_at.strftime("%Y-%m-%d %H:%M"),
+            }
+            for b in qs
+        ]
+        if fmt == "pdf":
+            return export_pdf("Bookings Report", self._EXPORT_HEADERS, rows, "bookings")
+        return export_csv(self._EXPORT_HEADERS, rows, "bookings")
 
 
 # ---------------------------------------------------------------------------

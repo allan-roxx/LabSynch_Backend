@@ -6,7 +6,10 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 
+from common.exports import export_csv, export_pdf
+from common.permissions import IsAdminUser
 from common.utils import success_response
 from .models import EquipmentIssuance, EquipmentReturn
 from .serializers import (
@@ -84,6 +87,37 @@ class EquipmentIssuanceViewSet(viewsets.ModelViewSet):
             data=EquipmentIssuanceReadSerializer(issuance).data,
             message="Delivery status updated.",
         )
+
+    _EXPORT_HEADERS = [
+        "ID", "Booking Ref", "Issued By", "Received By", "Delivery Status", "Issued At",
+    ]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("fmt", str, description="csv or pdf", default="csv")],
+        responses={200: None},
+        summary="Export issuances as CSV or PDF (admin only)",
+    )
+    @action(detail=False, methods=["get"], url_path="export", url_name="export",
+            permission_classes=[IsAuthenticated, IsAdminUser])
+    def export(self, request):
+        fmt = request.query_params.get("fmt", "csv").lower()
+        qs = EquipmentIssuance.objects.select_related(
+            "booking", "issued_by", "received_by"
+        ).all()
+        rows = [
+            {
+                "ID": str(i.id),
+                "Booking Ref": i.booking.booking_reference if i.booking else "",
+                "Issued By": i.issued_by.email if i.issued_by else "",
+                "Received By": i.received_by.email if i.received_by else "",
+                "Delivery Status": i.delivery_status or "",
+                "Issued At": i.issued_at.strftime("%Y-%m-%d %H:%M") if i.issued_at else "",
+            }
+            for i in qs
+        ]
+        if fmt == "pdf":
+            return export_pdf("Issuances Report", self._EXPORT_HEADERS, rows, "issuances")
+        return export_csv(self._EXPORT_HEADERS, rows, "issuances")
 
 
 class EquipmentReturnViewSet(viewsets.ModelViewSet):

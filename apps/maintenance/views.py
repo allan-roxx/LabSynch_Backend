@@ -3,7 +3,10 @@ Views for Maintenance app.
 """
 
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 
+from common.exports import export_csv, export_pdf
 from common.permissions import IsAdminUser
 from rest_framework.exceptions import ValidationError
 from common.utils import success_response
@@ -69,3 +72,34 @@ class MaintenanceScheduleViewSet(viewsets.ModelViewSet):
             message="Maintenance schedule updated.",
             status_code=status.HTTP_200_OK,
         )
+
+    _EXPORT_HEADERS = [
+        "ID", "Equipment", "Type", "Status", "Scheduled Date",
+        "Completed Date", "Technician", "Cost",
+    ]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("fmt", str, description="csv or pdf", default="csv")],
+        responses={200: None},
+        summary="Export maintenance schedules as CSV or PDF (admin only)",
+    )
+    @action(detail=False, methods=["get"], url_path="export", url_name="export")
+    def export(self, request):
+        fmt = request.query_params.get("fmt", "csv").lower()
+        qs = MaintenanceSchedule.objects.select_related("equipment").all()
+        rows = [
+            {
+                "ID": str(m.id),
+                "Equipment": m.equipment.equipment_name if m.equipment else "",
+                "Type": m.maintenance_type,
+                "Status": m.status,
+                "Scheduled Date": str(m.scheduled_date),
+                "Completed Date": str(m.completed_date) if m.completed_date else "",
+                "Technician": m.technician_name or "",
+                "Cost": str(m.cost) if m.cost else "",
+            }
+            for m in qs
+        ]
+        if fmt == "pdf":
+            return export_pdf("Maintenance Schedules", self._EXPORT_HEADERS, rows, "maintenance")
+        return export_csv(self._EXPORT_HEADERS, rows, "maintenance")

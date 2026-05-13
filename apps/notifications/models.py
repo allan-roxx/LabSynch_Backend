@@ -12,6 +12,7 @@ class NotificationType(models.TextChoices):
     EQUIPMENT_OVERDUE = "EQUIPMENT_OVERDUE", "Equipment Overdue"
     BOOKING_CANCELLED = "BOOKING_CANCELLED", "Booking Cancelled"
     PENALTY_CLEARED = "PENALTY_CLEARED", "Penalty Cleared"
+    BOOKING_AT_RISK = "BOOKING_AT_RISK", "Booking At Risk"
     GENERAL = "GENERAL", "General"
 
 

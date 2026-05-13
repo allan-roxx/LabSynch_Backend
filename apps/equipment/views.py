@@ -7,9 +7,11 @@ from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
 
 from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from apps.bookings.serializers import AvailabilityCheckSerializer
 from apps.bookings.services import get_available_quantity
+from common.exports import export_csv, export_pdf
 from common.permissions import IsAdminUser
 from common.utils import success_response
 from .models import Equipment, EquipmentCategory, PricingRule, TransportZone
@@ -220,6 +222,40 @@ class EquipmentViewSet(viewsets.ModelViewSet):
             data={"equipment_id": instance.id, "available_quantity": available_qty},
             message="Availability checked successfully."
         )
+
+    _EXPORT_HEADERS = [
+        "ID", "Code", "Name", "Category", "Total Qty", "Available Qty",
+        "Unit Price/Day", "Condition", "Active",
+    ]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("fmt", str, description="csv or pdf", default="csv")],
+        responses={200: None},
+        summary="Export equipment catalog as CSV or PDF (admin only)",
+    )
+    @action(detail=False, methods=["get"], url_path="export", url_name="export",
+            permission_classes=[IsAuthenticated, IsAdminUser])
+    def export(self, request):
+        fmt = request.query_params.get("fmt", "csv").lower()
+        rows = [
+            {
+                "ID": str(eq.id),
+                "Code": eq.equipment_code,
+                "Name": eq.equipment_name,
+                "Category": eq.category.category_name if eq.category else "",
+                "Total Qty": eq.total_quantity,
+                "Available Qty": eq.available_quantity,
+                "Unit Price/Day": str(eq.unit_price_per_day),
+                "Condition": eq.condition,
+                "Active": eq.is_active,
+            }
+            for eq in self.filter_queryset(
+                Equipment.objects.select_related("category").all()
+            )
+        ]
+        if fmt == "pdf":
+            return export_pdf("Equipment Catalog", self._EXPORT_HEADERS, rows, "equipment")
+        return export_csv(self._EXPORT_HEADERS, rows, "equipment")
 
 
 class PricingRuleViewSet(viewsets.ModelViewSet):

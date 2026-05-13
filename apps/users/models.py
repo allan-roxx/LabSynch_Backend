@@ -60,6 +60,17 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     is_verified = models.BooleanField(default=False)
     email_verified_at = models.DateTimeField(null=True, blank=True)
 
+    # Terms & conditions
+    terms_accepted = models.BooleanField(
+        default=False,
+        help_text="User has accepted the platform Terms and Conditions.",
+    )
+    terms_accepted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp at which the user accepted the Terms and Conditions.",
+    )
+
     # Django auth fields
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

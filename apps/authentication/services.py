@@ -37,6 +37,7 @@ def register_school_user(
     phone_number="",
     school_name="",
     registration_number="",
+    terms_accepted=False,
 ):
     """
     Register a new SCHOOL user with an associated SchoolProfile.
@@ -63,6 +64,8 @@ def register_school_user(
         phone_number=phone_number,
         user_type=UserType.SCHOOL,
         is_verified=False,
+        terms_accepted=True,
+        terms_accepted_at=timezone.now(),
     )
 
     # Create school profile

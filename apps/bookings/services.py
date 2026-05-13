@@ -3,7 +3,7 @@ Booking module business logic for availability, pricing, state machine,
 transport, personnel costs, liability checks, and cart operations.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -92,7 +92,16 @@ def check_school_liability(school_profile: SchoolProfile):
 def get_available_quantity(equipment_id: str, start_date: date, end_date: date) -> int:
     """
     Check the real-time availability of an equipment item between two dates.
-    Accounts for overlapping active bookings.
+
+    A mandatory 1-day gap is enforced after every booking's return_date: a booking
+    for Aug 1–10 also blocks Aug 11, ensuring the return and inspection day is never
+    double-booked. Concretely this is achieved by using (start_date - 1 day) as the
+    lower bound for the return_date overlap filter.
+
+    OVERDUE bookings are included in the overlapping statuses, so equipment that was
+    due back but hasn't been returned continues to block future slots. The daily
+    `check_at_risk_bookings` task then fires early-warning notifications to any school
+    that has a RESERVED booking threatened by a lingering OVERDUE holdout.
     """
     equipment = Equipment.objects.get(id=equipment_id)
     if not equipment.is_active:
@@ -110,7 +119,9 @@ def get_available_quantity(equipment_id: str, start_date: date, end_date: date) 
         equipment_id=equipment_id,
         booking__status__in=overlapping_statuses,
         booking__pickup_date__lte=end_date,
-        booking__return_date__gte=start_date,
+        # return_date + 1 grace day: use (start_date - 1) so a booking ending the
+        # day before our requested start still counts as occupying that slot.
+        booking__return_date__gte=start_date - timedelta(days=1),
     ).aggregate(total=Sum("quantity"))["total"] or 0
 
     available = equipment.total_quantity - reserved_qty

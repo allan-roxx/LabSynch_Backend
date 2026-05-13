@@ -2,10 +2,11 @@
 Views for Damages app.
 """
 
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 
+from common.exports import export_csv, export_pdf
 from common.permissions import IsAdminUser
 from rest_framework.exceptions import ValidationError
 from common.utils import success_response
@@ -88,3 +89,39 @@ class DamageReportViewSet(viewsets.ModelViewSet):
             message="Damage report resolution updated.",
             status_code=status.HTTP_200_OK,
         )
+
+    _EXPORT_HEADERS = [
+        "ID", "Booking Ref", "Equipment", "Severity", "Qty Damaged",
+        "Repair Cost", "Amount Paid", "Resolution Status", "Created At",
+    ]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("fmt", str, description="csv or pdf", default="csv")],
+        responses={200: None},
+        summary="Export damage reports as CSV or PDF (admin only)",
+    )
+    @action(detail=False, methods=["get"], url_path="export", url_name="export")
+    def export(self, request):
+        fmt = request.query_params.get("fmt", "csv").lower()
+        qs = DamageReport.objects.select_related(
+            "equipment_return__booking", "booking_item__equipment"
+        ).all()
+        rows = [
+            {
+                "ID": str(dr.id),
+                "Booking Ref": dr.equipment_return.booking.booking_reference
+                    if dr.equipment_return and dr.equipment_return.booking else "",
+                "Equipment": dr.booking_item.equipment.equipment_name
+                    if dr.booking_item and dr.booking_item.equipment else "",
+                "Severity": dr.severity,
+                "Qty Damaged": dr.quantity_damaged,
+                "Repair Cost": str(dr.repair_cost) if dr.repair_cost else "",
+                "Amount Paid": str(dr.amount_paid) if dr.amount_paid else "",
+                "Resolution Status": dr.resolution_status,
+                "Created At": dr.created_at.strftime("%Y-%m-%d %H:%M"),
+            }
+            for dr in qs
+        ]
+        if fmt == "pdf":
+            return export_pdf("Damage Reports", self._EXPORT_HEADERS, rows, "damage_reports")
+        return export_csv(self._EXPORT_HEADERS, rows, "damage_reports")

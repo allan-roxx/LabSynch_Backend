@@ -96,3 +96,5 @@ class EquipmentWriteSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("Unit price must be greater than zero.")
         return value
+
+

@@ -16,11 +16,13 @@ Endpoints:
 
 import logging
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from common.exports import export_csv, export_pdf
 from common.pagination import StandardResultsPagination
 from common.permissions import IsAdminUser, IsSchoolUser
 from common.utils import success_response
@@ -177,6 +179,35 @@ class UserAdminViewSet(
             message="User retrieved successfully.",
         )
 
+    _EXPORT_HEADERS = [
+        "ID", "Email", "Full Name", "Phone", "Type", "Verified", "Active", "Created At",
+    ]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("fmt", str, description="csv or pdf", default="csv")],
+        responses={200: None},
+        summary="Export all users as CSV or PDF (admin only)",
+    )
+    @action(detail=False, methods=["get"], url_path="export", url_name="export")
+    def export(self, request):
+        fmt = request.query_params.get("fmt", "csv").lower()
+        rows = [
+            {
+                "ID": str(u.id),
+                "Email": u.email,
+                "Full Name": u.full_name,
+                "Phone": u.phone_number or "",
+                "Type": u.user_type,
+                "Verified": u.is_verified,
+                "Active": u.is_active,
+                "Created At": u.created_at.strftime("%Y-%m-%d %H:%M"),
+            }
+            for u in self.get_queryset()
+        ]
+        if fmt == "pdf":
+            return export_pdf("Users Report", self._EXPORT_HEADERS, rows, "users")
+        return export_csv(self._EXPORT_HEADERS, rows, "users")
+
 
 class SchoolProfileAdminViewSet(
     mixins.ListModelMixin,
@@ -225,3 +256,35 @@ class SchoolProfileAdminViewSet(
     def partial_update(self, request, *args, **kwargs):
         kwargs["partial"] = True
         return self.update(request, *args, **kwargs)
+
+    _EXPORT_HEADERS = [
+        "ID", "School Name", "Reg No", "County", "Contact Person",
+        "Designation", "Liability Status", "Account Status", "Credit Limit", "Created At",
+    ]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("fmt", str, description="csv or pdf", default="csv")],
+        responses={200: None},
+        summary="Export all school profiles as CSV or PDF (admin only)",
+    )
+    @action(detail=False, methods=["get"], url_path="export", url_name="export")
+    def export(self, request):
+        fmt = request.query_params.get("fmt", "csv").lower()
+        rows = [
+            {
+                "ID": str(sp.id),
+                "School Name": sp.school_name,
+                "Reg No": sp.registration_number,
+                "County": sp.county or "",
+                "Contact Person": sp.contact_person or "",
+                "Designation": sp.contact_designation or "",
+                "Liability Status": sp.liability_status,
+                "Account Status": sp.account_status,
+                "Credit Limit": str(sp.credit_limit),
+                "Created At": sp.created_at.strftime("%Y-%m-%d %H:%M"),
+            }
+            for sp in self.get_queryset()
+        ]
+        if fmt == "pdf":
+            return export_pdf("School Profiles Report", self._EXPORT_HEADERS, rows, "school_profiles")
+        return export_csv(self._EXPORT_HEADERS, rows, "school_profiles")

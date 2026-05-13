@@ -25,6 +25,14 @@ class RegisterSerializer(serializers.Serializer):
     registration_number = serializers.CharField(
         max_length=100, required=False, default=""
     )
+    terms_accepted = serializers.BooleanField()
+
+    def validate_terms_accepted(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                "You must accept the Terms and Conditions to create an account."
+            )
+        return value
 
 
 class LoginSerializer(serializers.Serializer):
@@ -79,6 +87,8 @@ class UserResponseSerializer(serializers.ModelSerializer):
             "phone_number",
             "user_type",
             "is_verified",
+            "terms_accepted",
+            "terms_accepted_at",
             "school_profile",
             "created_at",
         ]

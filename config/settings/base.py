@@ -233,7 +233,11 @@ CELERY_TIMEZONE = "Africa/Nairobi"
 CELERY_BEAT_SCHEDULE = {
     "send-overdue-alerts-daily": {
         "task": "notifications.send_overdue_alerts",
-        "schedule": crontab(hour=8, minute=0),  # 08:00 Africa/Nairobi
+        "schedule": crontab(hour=8, minute=0),   # 08:00 Africa/Nairobi
+    },
+    "check-at-risk-bookings-daily": {
+        "task": "notifications.check_at_risk_bookings",
+        "schedule": crontab(hour=8, minute=5),   # 08:05 — runs after overdue alerts
     },
 }
 
