@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db.models import Avg, Count, F, Q, Sum
+from django.db.models.functions import TruncDay, TruncMonth, TruncWeek
 from django.utils import timezone
 
 from apps.bookings.models import Booking, BookingItem, BookingStatus
@@ -63,6 +64,60 @@ def get_dashboard_metrics() -> dict:
         pickup_date=today,
     ).count()
 
+    # -- 30-day daily trend: bookings created & revenue earned ----------
+    thirty_days_ago = (now - timedelta(days=29)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    bookings_trend = [
+        {"date": row["day"].strftime("%Y-%m-%d"), "count": row["count"]}
+        for row in (
+            Booking.objects.filter(created_at__gte=thirty_days_ago)
+            .annotate(day=TruncDay("created_at"))
+            .values("day")
+            .annotate(count=Count("id"))
+            .order_by("day")
+        )
+    ]
+    revenue_trend = [
+        {"date": row["day"].strftime("%Y-%m-%d"), "revenue": str(row["revenue"])}
+        for row in (
+            Payment.objects.filter(
+                payment_status="SUCCESS", completed_at__gte=thirty_days_ago
+            )
+            .annotate(day=TruncDay("completed_at"))
+            .values("day")
+            .annotate(revenue=Sum("amount_paid"))
+            .order_by("day")
+        )
+    ]
+
+    # -- Monthly bookings for last 12 months ----------------------------
+    twelve_months_ago = (now - timedelta(days=365)).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+    monthly_bookings = [
+        {"month": row["month"].strftime("%Y-%m"), "count": row["count"]}
+        for row in (
+            Booking.objects.filter(created_at__gte=twelve_months_ago)
+            .annotate(month=TruncMonth("created_at"))
+            .values("month")
+            .annotate(count=Count("id"))
+            .order_by("month")
+        )
+    ]
+    monthly_revenue = [
+        {"month": row["month"].strftime("%Y-%m"), "revenue": str(row["revenue"])}
+        for row in (
+            Payment.objects.filter(
+                payment_status="SUCCESS", completed_at__gte=twelve_months_ago
+            )
+            .annotate(month=TruncMonth("completed_at"))
+            .values("month")
+            .annotate(revenue=Sum("amount_paid"))
+            .order_by("month")
+        )
+    ]
+
     return {
         "total_bookings": total_bookings,
         "active_bookings": active_bookings,
@@ -75,6 +130,10 @@ def get_dashboard_metrics() -> dict:
         "today_pickups": today_pickups,
         "today_returns": today_returns,
         "today_pending_payment": today_pending_payment,
+        "bookings_trend": bookings_trend,
+        "revenue_trend": revenue_trend,
+        "monthly_bookings": monthly_bookings,
+        "monthly_revenue": monthly_revenue,
     }
 
 
@@ -82,8 +141,16 @@ def get_dashboard_metrics() -> dict:
 # Booking analytics
 # ---------------------------------------------------------------------------
 
-def get_booking_report(start_date: date | None = None, end_date: date | None = None) -> dict:
-    """Booking counts grouped by status and by month."""
+_TRUNC_MAP = {"day": TruncDay, "week": TruncWeek, "month": TruncMonth}
+_DATE_FMT = {"day": "%Y-%m-%d", "week": "%G-W%V", "month": "%Y-%m"}
+
+
+def get_booking_report(
+    start_date: date | None = None,
+    end_date: date | None = None,
+    granularity: str = "month",
+) -> dict:
+    """Booking counts grouped by status and by configurable time period."""
     qs = Booking.objects.all()
     if start_date:
         qs = qs.filter(created_at__date__gte=start_date)
@@ -101,10 +168,23 @@ def get_booking_report(start_date: date | None = None, end_date: date | None = N
         duration=F("return_date") - F("pickup_date"),
     ).aggregate(avg=Avg("duration"))["avg"]
 
+    trunc_fn = _TRUNC_MAP.get(granularity, TruncMonth)
+    fmt = _DATE_FMT.get(granularity, "%Y-%m")
+    by_period = [
+        {"period": row["period"].strftime(fmt), "count": row["count"]}
+        for row in (
+            qs.annotate(period=trunc_fn("created_at"))
+            .values("period")
+            .annotate(count=Count("id"))
+            .order_by("period")
+        )
+    ]
+
     return {
         "total": total,
         "by_status": by_status,
         "average_duration_days": avg_duration.days if avg_duration else None,
+        "by_period": by_period,
     }
 
 
@@ -112,8 +192,12 @@ def get_booking_report(start_date: date | None = None, end_date: date | None = N
 # Financial / revenue report
 # ---------------------------------------------------------------------------
 
-def get_financial_report(start_date: date | None = None, end_date: date | None = None) -> dict:
-    """Revenue breakdown: total, by month, outstanding damages."""
+def get_financial_report(
+    start_date: date | None = None,
+    end_date: date | None = None,
+    granularity: str = "month",
+) -> dict:
+    """Revenue breakdown: total, by configurable period, outstanding damages."""
     payments = Payment.objects.filter(payment_status="SUCCESS")
     if start_date:
         payments = payments.filter(completed_at__date__gte=start_date)
@@ -132,10 +216,27 @@ def get_financial_report(start_date: date | None = None, end_date: date | None =
     total_repair = outstanding_damages["total_repair_cost"] or Decimal("0.00")
     total_paid = outstanding_damages["total_paid"] or Decimal("0.00")
 
+    trunc_fn = _TRUNC_MAP.get(granularity, TruncMonth)
+    fmt = _DATE_FMT.get(granularity, "%Y-%m")
+    by_period = [
+        {
+            "period": row["period"].strftime(fmt),
+            "revenue": str(row["revenue"]),
+            "payment_count": row["payment_count"],
+        }
+        for row in (
+            payments.annotate(period=trunc_fn("completed_at"))
+            .values("period")
+            .annotate(revenue=Sum("amount_paid"), payment_count=Count("id"))
+            .order_by("period")
+        )
+    ]
+
     return {
         "total_revenue": str(total_revenue),
         "payment_count": payment_count,
         "outstanding_damage_cost": str(total_repair - total_paid),
+        "by_period": by_period,
     }
 
 

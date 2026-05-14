@@ -223,16 +223,53 @@ def generate_contract_pdf(booking) -> io.BytesIO:
         ("PADDING", (0, 0), (-1, -1), 6),
     ]))
     elements.append(fin_table)
-    elements.append(Spacer(1, 20))
+    elements.append(Spacer(1, 16))
 
-    # Signature lines
-    sig = """
-    <br/><br/>
-    ________________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;________________________________<br/>
-    <b>LabSynch Representative</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Borrower / School Representative</b><br/><br/>
-    Date: ________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Date: ________________
-    """
-    elements.append(Paragraph(sig.strip(), _NORMAL))
+    # Digital acceptance confirmation
+    elements.append(Paragraph("Digital Acceptance", _HEADING))
+
+    user = school.user
+    accepted_at = (
+        user.terms_accepted_at.strftime("%d %b %Y, %H:%M EAT")
+        if getattr(user, "terms_accepted_at", None)
+        else booking.created_at.strftime("%d %b %Y, %H:%M EAT")
+    )
+    booking_created = booking.created_at.strftime("%d %b %Y, %H:%M EAT")
+
+    acceptance_data = [
+        ["Booking Created By", f"{user.full_name}"],
+        ["Account Email", f"{user.email}"],
+        ["Institution", f"{school.school_name}"],
+        ["Contact Person", f"{school.contact_person or 'N/A'} — {school.contact_designation or ''}".rstrip(" —")],
+        ["Terms & Conditions Accepted", accepted_at],
+        ["Booking Placed On", booking_created],
+        ["Booking Reference", booking.booking_reference],
+    ]
+    acceptance_table = Table(acceptance_data, colWidths=[6 * cm, 12 * cm])
+    acceptance_table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("BACKGROUND", (0, 0), (0, -1), colors.Color(0.93, 0.93, 0.93)),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("PADDING", (0, 0), (-1, -1), 6),
+        ("BACKGROUND", (0, 4), (-1, 4), colors.Color(0.88, 0.95, 0.88)),
+    ]))
+    elements.append(acceptance_table)
+    elements.append(Spacer(1, 10))
+
+    notice = (
+        "This agreement was entered into digitally. By creating this booking on the LabSynch "
+        "platform, the school named above accepted the LabSynch Terms and Conditions in full. "
+        "No physical signature is required. This document is legally binding under the laws of Kenya."
+    )
+    elements.append(Paragraph(notice, _NORMAL))
+    elements.append(Spacer(1, 16))
+
+    # Operator stamp line
+    issued_on = booking.created_at.strftime("%d %b %Y")
+    elements.append(Paragraph(
+        f"<b>Issued by:</b> LabSynch Equipment Services &nbsp;&nbsp; <b>Date Issued:</b> {issued_on}",
+        _NORMAL,
+    ))
 
     doc.build(elements)
     buf.seek(0)

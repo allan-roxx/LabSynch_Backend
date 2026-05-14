@@ -8,6 +8,11 @@ from rest_framework import serializers
 class DateRangeSerializer(serializers.Serializer):
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
+    granularity = serializers.ChoiceField(
+        choices=["day", "week", "month"],
+        required=False,
+        default="month",
+    )
 
     def validate(self, attrs):
         if attrs.get("start_date") and attrs.get("end_date"):

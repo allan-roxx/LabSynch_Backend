@@ -37,6 +37,30 @@ class DashboardMetricsView(APIView):
             "today_pickups": drf_serializers.IntegerField(),
             "today_returns": drf_serializers.IntegerField(),
             "today_pending_payment": drf_serializers.IntegerField(),
+            "bookings_trend": drf_serializers.ListField(
+                child=inline_serializer("BookingTrendPoint", fields={
+                    "date": drf_serializers.CharField(),
+                    "count": drf_serializers.IntegerField(),
+                })
+            ),
+            "revenue_trend": drf_serializers.ListField(
+                child=inline_serializer("RevenueTrendPoint", fields={
+                    "date": drf_serializers.CharField(),
+                    "revenue": drf_serializers.CharField(),
+                })
+            ),
+            "monthly_bookings": drf_serializers.ListField(
+                child=inline_serializer("MonthlyBookingPoint", fields={
+                    "month": drf_serializers.CharField(),
+                    "count": drf_serializers.IntegerField(),
+                })
+            ),
+            "monthly_revenue": drf_serializers.ListField(
+                child=inline_serializer("MonthlyRevenuePoint", fields={
+                    "month": drf_serializers.CharField(),
+                    "revenue": drf_serializers.CharField(),
+                })
+            ),
         })},
         summary="Admin dashboard KPIs",
     )
@@ -56,8 +80,14 @@ class BookingReportView(APIView):
             "total": drf_serializers.IntegerField(),
             "by_status": drf_serializers.DictField(child=drf_serializers.IntegerField()),
             "average_duration_days": drf_serializers.IntegerField(allow_null=True),
+            "by_period": drf_serializers.ListField(
+                child=inline_serializer("BookingPeriodPoint", fields={
+                    "period": drf_serializers.CharField(),
+                    "count": drf_serializers.IntegerField(),
+                })
+            ),
         })},
-        summary="Booking analytics with optional date range",
+        summary="Booking analytics with optional date range and granularity",
     )
     def get(self, request):
         serializer = DateRangeSerializer(data=request.query_params)
@@ -65,6 +95,7 @@ class BookingReportView(APIView):
         data = get_booking_report(
             start_date=serializer.validated_data.get("start_date"),
             end_date=serializer.validated_data.get("end_date"),
+            granularity=serializer.validated_data.get("granularity", "month"),
         )
         return success_response(data=data, message="Booking report retrieved successfully.")
 
@@ -80,8 +111,15 @@ class FinancialReportView(APIView):
             "total_revenue": drf_serializers.CharField(),
             "payment_count": drf_serializers.IntegerField(),
             "outstanding_damage_cost": drf_serializers.CharField(),
+            "by_period": drf_serializers.ListField(
+                child=inline_serializer("FinancialPeriodPoint", fields={
+                    "period": drf_serializers.CharField(),
+                    "revenue": drf_serializers.CharField(),
+                    "payment_count": drf_serializers.IntegerField(),
+                })
+            ),
         })},
-        summary="Financial / revenue report with optional date range",
+        summary="Financial / revenue report with optional date range and granularity",
     )
     def get(self, request):
         serializer = DateRangeSerializer(data=request.query_params)
@@ -89,6 +127,7 @@ class FinancialReportView(APIView):
         data = get_financial_report(
             start_date=serializer.validated_data.get("start_date"),
             end_date=serializer.validated_data.get("end_date"),
+            granularity=serializer.validated_data.get("granularity", "month"),
         )
         return success_response(data=data, message="Financial report retrieved successfully.")
 
