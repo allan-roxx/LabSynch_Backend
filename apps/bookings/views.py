@@ -211,9 +211,9 @@ class BookingViewSet(viewsets.ModelViewSet):
         return export_csv(self._EXPORT_HEADERS, rows, "bookings")
 
 
-# ---------------------------------------------------------------------------
+
 # Cart views  (school users only)
-# ---------------------------------------------------------------------------
+
 
 @extend_schema(methods=["GET"], responses={200: CartReadSerializer}, summary="Get current cart")
 @extend_schema(methods=["PATCH"], request=CartDatesSerializer, responses={200: CartReadSerializer}, summary="Set cart dates / instructions")

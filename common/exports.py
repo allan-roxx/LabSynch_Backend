@@ -34,9 +34,9 @@ from reportlab.platypus import (
 )
 
 
-# ---------------------------------------------------------------------------
+
 # CSV
-# ---------------------------------------------------------------------------
+
 
 class _EchoBuffer:
     """A write-only file-like object that returns the value written."""
@@ -67,9 +67,9 @@ def export_csv(headers: list[str], rows: list[dict], filename_stem: str) -> Stre
     return response
 
 
-# ---------------------------------------------------------------------------
+
 # PDF
-# ---------------------------------------------------------------------------
+
 
 _STYLES = getSampleStyleSheet()
 _TITLE_STYLE = ParagraphStyle("ExportTitle", parent=_STYLES["Title"], fontSize=16, spaceAfter=8)

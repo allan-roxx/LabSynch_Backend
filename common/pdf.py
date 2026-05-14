@@ -19,9 +19,9 @@ from reportlab.platypus import (
 )
 
 
-# ---------------------------------------------------------------------------
+
 # Common helpers
-# ---------------------------------------------------------------------------
+
 
 _STYLES = getSampleStyleSheet()
 _TITLE = ParagraphStyle("DocTitle", parent=_STYLES["Title"], fontSize=18, spaceAfter=10)
@@ -47,9 +47,9 @@ def _header_table(title: str, reference: str, date_str: str) -> Table:
     return t
 
 
-# ---------------------------------------------------------------------------
+
 # Payment Receipt PDF
-# ---------------------------------------------------------------------------
+
 
 def generate_receipt_pdf(payment) -> io.BytesIO:
     """Generate a payment receipt PDF and return it as an in-memory buffer."""
@@ -135,9 +135,9 @@ def generate_receipt_pdf(payment) -> io.BytesIO:
     return buf
 
 
-# ---------------------------------------------------------------------------
+
 # Equipment Usage Contract PDF
-# ---------------------------------------------------------------------------
+
 
 def generate_contract_pdf(booking) -> io.BytesIO:
     """Generate an equipment usage agreement/contract PDF."""

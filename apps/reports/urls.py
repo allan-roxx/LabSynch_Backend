@@ -6,6 +6,7 @@ from .views import (
     DashboardMetricsView,
     EquipmentReportView,
     FinancialReportView,
+    ProfitabilityReportView,
 )
 
 urlpatterns = [
@@ -14,4 +15,5 @@ urlpatterns = [
     path("reports/financial/", FinancialReportView.as_view(), name="report-financial"),
     path("reports/equipment/", EquipmentReportView.as_view(), name="report-equipment"),
     path("reports/clients/", ClientReportView.as_view(), name="report-clients"),
+    path("reports/profitability/", ProfitabilityReportView.as_view(), name="report-profitability"),
 ]

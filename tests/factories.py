@@ -51,9 +51,9 @@ class SchoolProfileFactory(factory.django.DjangoModelFactory):
     account_status = AccountStatus.ACTIVE
 
 
-# ---------------------------------------------------------------------------
+
 # Equipment factories
-# ---------------------------------------------------------------------------
+
 
 from datetime import date, timedelta
 from decimal import Decimal

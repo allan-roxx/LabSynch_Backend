@@ -25,9 +25,9 @@ from apps.audit.services import log_action
 from apps.audit.models import AuditLog
 
 
-# ---------------------------------------------------------------------------
+
 # Helpers
-# ---------------------------------------------------------------------------
+
 
 def _validate_transition(booking: Booking, target_status: str):
     """Raise ValidationError if the transition is not allowed."""
@@ -85,9 +85,9 @@ def check_school_liability(school_profile: SchoolProfile):
     # pays their debt transparently as part of the next payment.
 
 
-# ---------------------------------------------------------------------------
+
 # Availability & pricing
-# ---------------------------------------------------------------------------
+
 
 def get_available_quantity(equipment_id: str, start_date: date, end_date: date) -> int:
     """
@@ -245,9 +245,9 @@ def admin_clear_booking_penalty(booking: Booking) -> Booking:
     return booking
 
 
-# ---------------------------------------------------------------------------
+
 # Booking CRUD
-# ---------------------------------------------------------------------------
+
 
 @transaction.atomic
 def create_booking(
@@ -373,9 +373,9 @@ def create_booking(
     return booking
 
 
-# ---------------------------------------------------------------------------
+
 # Booking state transitions
-# ---------------------------------------------------------------------------
+
 
 @transaction.atomic
 def cancel_booking(booking: Booking, user: User) -> Booking:
@@ -432,9 +432,9 @@ def complete_booking(booking: Booking, admin_user: User) -> Booking:
     return booking
 
 
-# ---------------------------------------------------------------------------
+
 # Cart services
-# ---------------------------------------------------------------------------
+
 
 def get_or_create_cart(user: User) -> Cart:
     """Return the user's existing cart or create an empty one."""

@@ -102,9 +102,9 @@ class AvailabilityCheckSerializer(serializers.Serializer):
         return attrs
 
 
-# ---------------------------------------------------------------------------
+
 # Cart serializers
-# ---------------------------------------------------------------------------
+
 
 class CartItemWriteSerializer(serializers.Serializer):
     """Used for POST /api/cart/items/ — add or update an item."""

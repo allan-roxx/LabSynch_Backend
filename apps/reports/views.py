@@ -16,6 +16,7 @@ from .services import (
     get_dashboard_metrics,
     get_equipment_report,
     get_financial_report,
+    get_profitability_report,
 )
 
 
@@ -172,3 +173,68 @@ class ClientReportView(APIView):
     def get(self, request):
         data = get_client_report()
         return success_response(data=data, message="Client report retrieved successfully.")
+
+
+class ProfitabilityReportView(APIView):
+    """GET /api/reports/profitability/ — full P&L for the leasing business."""
+
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(
+        parameters=[DateRangeSerializer],
+        responses={200: inline_serializer("ProfitabilityReport", fields={
+            "summary": inline_serializer("ProfitSummary", fields={
+                "total_payments_received": drf_serializers.CharField(),
+                "damage_recovery": drf_serializers.CharField(),
+                "gross_revenue": drf_serializers.CharField(),
+                "total_repair_costs": drf_serializers.CharField(),
+                "net_profit": drf_serializers.CharField(),
+                "profit_margin_pct": drf_serializers.CharField(),
+            }),
+            "revenue_breakdown": inline_serializer("RevenueBreakdown", fields={
+                "rental": drf_serializers.CharField(),
+                "personnel": drf_serializers.CharField(),
+                "transport": drf_serializers.CharField(),
+                "penalties": drf_serializers.CharField(),
+                "damage_recovery": drf_serializers.CharField(),
+            }),
+            "damage_analysis": inline_serializer("DamageAnalysis", fields={
+                "total_repair_cost_assessed": drf_serializers.CharField(),
+                "total_recovered_from_schools": drf_serializers.CharField(),
+                "net_unrecovered_repair_cost": drf_serializers.CharField(),
+                "all_time_outstanding_liability": drf_serializers.CharField(),
+            }),
+            "fleet_overview": inline_serializer("FleetOverview", fields={
+                "total_active_equipment": drf_serializers.IntegerField(),
+                "total_fleet_acquisition_value": drf_serializers.CharField(),
+            }),
+            "profitability_trend": drf_serializers.ListField(
+                child=inline_serializer("ProfitTrendPoint", fields={
+                    "period": drf_serializers.CharField(),
+                    "gross_revenue": drf_serializers.CharField(),
+                    "repair_costs": drf_serializers.CharField(),
+                    "damage_recovery": drf_serializers.CharField(),
+                    "net_profit": drf_serializers.CharField(),
+                })
+            ),
+            "equipment_roi": drf_serializers.ListField(
+                child=inline_serializer("EquipmentROI", fields={
+                    "equipment_id": drf_serializers.UUIDField(),
+                    "equipment_name": drf_serializers.CharField(),
+                    "acquisition_cost": drf_serializers.CharField(),
+                    "total_revenue_generated": drf_serializers.CharField(),
+                    "roi_pct": drf_serializers.CharField(allow_null=True),
+                })
+            ),
+        })},
+        summary="Full P&L — revenue sources, repair costs, net profit, equipment ROI",
+    )
+    def get(self, request):
+        serializer = DateRangeSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        data = get_profitability_report(
+            start_date=serializer.validated_data.get("start_date"),
+            end_date=serializer.validated_data.get("end_date"),
+            granularity=serializer.validated_data.get("granularity", "month"),
+        )
+        return success_response(data=data, message="Profitability report retrieved successfully.")
