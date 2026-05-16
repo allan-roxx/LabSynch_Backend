@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.env
+db.sqlite3
+staticfiles/
+media/
+celerybeat/
+.git/
+.gitignore
+*.md
+docs/
+tests/
