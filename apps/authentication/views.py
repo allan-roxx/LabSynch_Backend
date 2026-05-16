@@ -7,6 +7,7 @@ standard envelope format from common/utils.py.
 
 import logging
 
+from django.conf import settings
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -57,8 +58,24 @@ class RegisterView(APIView):
 
         user = register_school_user(**serializer.validated_data)
 
+        data = dict(UserResponseSerializer(user).data)
+
+        # In DEBUG mode include the verification link directly in the response so
+        # developers don't need to configure email to test the registration flow.
+        if settings.DEBUG:
+            from django.contrib.auth.tokens import default_token_generator
+            from django.utils.encoding import force_bytes
+            from django.utils.http import urlsafe_base64_encode
+
+            uid = urlsafe_base64_encode(force_bytes(str(user.pk)))
+            token = default_token_generator.make_token(user)
+            frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+            data["dev_verification_url"] = (
+                f"{frontend_url}/verify-email?uid={uid}&token={token}"
+            )
+
         return success_response(
-            data=UserResponseSerializer(user).data,
+            data=data,
             message="Registration successful. Please check your email to verify your account.",
             status_code=status.HTTP_201_CREATED,
         )
