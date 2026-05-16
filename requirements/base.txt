@@ -1,4 +1,4 @@
-Django core
+# Django core
 Django>=5.2,<5.3
 
 # Django REST Framework
