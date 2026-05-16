@@ -6,13 +6,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System deps for psycopg2
+# System deps for psycopg2, Pillow, and reportlab
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev gcc \
+    libpq-dev \
+    gcc \
+    libjpeg-dev \
+    zlib1g-dev \
+    libfreetype6-dev \
+    libwebp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies first (layer cached until requirements change)
-COPY requirements/production.txt requirements/production.txt
+COPY requirements/ requirements/
 RUN pip install --no-cache-dir -r requirements/production.txt
 
 # Copy application source
