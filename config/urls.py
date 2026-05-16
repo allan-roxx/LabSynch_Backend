@@ -11,8 +11,9 @@ from drf_spectacular.views import (
 )
 
 urlpatterns = [
-    # Admin
-    path("admin/", admin.site.urls),
+    # Admin — deliberately not at /admin/ to avoid clashing with the React
+    # frontend which uses /admin/* for its own routing.
+    path("django-admin/", admin.site.urls),
 
     # API documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
