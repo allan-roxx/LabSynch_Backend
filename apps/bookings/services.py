@@ -108,7 +108,6 @@ def get_available_quantity(equipment_id: str, start_date: date, end_date: date) 
         return 0
 
     overlapping_statuses = [
-        BookingStatus.PENDING,
         BookingStatus.RESERVED,
         BookingStatus.DISPATCHED,
         BookingStatus.IN_USE,
@@ -185,6 +184,43 @@ def _compute_outstanding_penalties(school_profile: SchoolProfile) -> Decimal:
         penalty_cleared=False,
     ).aggregate(total=Sum("overdue_penalty"))["total"]
     return result if result is not None else Decimal("0.00")
+
+
+@transaction.atomic
+def reserve_booking_inventory(booking: Booking) -> None:
+    """
+    Reserve equipment quantities for a booking.
+    Called once payment succeeds so inventory is allocated by payment order,
+    not booking creation order.
+    """
+    items = list(booking.booking_items.select_related("equipment").all())
+    if not items:
+        return
+
+    equipment_ids = sorted({str(item.equipment_id) for item in items})
+    equipments = Equipment.objects.select_for_update().filter(id__in=equipment_ids)
+    equipment_map = {str(eq.id): eq for eq in equipments}
+
+    for item in items:
+        eq = equipment_map.get(str(item.equipment_id))
+        if not eq or not eq.is_active:
+            raise ValidationError(
+                {"equipment": f"'{item.equipment.equipment_name}' is no longer available."}
+            )
+        if item.quantity > eq.available_quantity:
+            raise ValidationError(
+                {
+                    "quantity": (
+                        f"Only {eq.available_quantity} '{eq.equipment_name}' available "
+                        "at payment confirmation time."
+                    )
+                }
+            )
+
+    for item in items:
+        eq = equipment_map[str(item.equipment_id)]
+        eq.available_quantity -= item.quantity
+        eq.save(update_fields=["available_quantity", "updated_at"])
 
 
 def clear_school_penalties(school_profile: SchoolProfile) -> int:
@@ -325,9 +361,6 @@ def create_booking(
 
         total_amount += subtotal
 
-        equipment.available_quantity -= quantity
-        equipment.save(update_fields=["available_quantity", "updated_at"])
-
         booking_items_to_create.append(
             BookingItem(
                 equipment=equipment,
@@ -386,6 +419,7 @@ def cancel_booking(booking: Booking, user: User) -> Booking:
         raise ValidationError({"detail": "You do not have permission to cancel this booking."})
 
     _validate_transition(booking, BookingStatus.CANCELLED)
+    previous_status = booking.status
 
     booking.status = BookingStatus.CANCELLED
     booking.save(update_fields=["status", "updated_at"])
@@ -397,18 +431,19 @@ def cancel_booking(booking: Booking, user: User) -> Booking:
         changes={"status": BookingStatus.CANCELLED},
     )
 
-    # Restore quantities
-    equipment_ids = [str(item.equipment_id) for item in booking.booking_items.all()]
-    equipment_ids.sort()
+    # Restore quantities only when cancellation happens after reservation.
+    if previous_status == BookingStatus.RESERVED:
+        equipment_ids = [str(item.equipment_id) for item in booking.booking_items.all()]
+        equipment_ids.sort()
 
-    equipments = Equipment.objects.select_for_update().filter(id__in=equipment_ids)
-    eq_map = {str(eq.id): eq for eq in equipments}
+        equipments = Equipment.objects.select_for_update().filter(id__in=equipment_ids)
+        eq_map = {str(eq.id): eq for eq in equipments}
 
-    for item in booking.booking_items.all():
-        eq = eq_map.get(str(item.equipment_id))
-        if eq:
-            eq.available_quantity += item.quantity
-            eq.save(update_fields=["available_quantity", "updated_at"])
+        for item in booking.booking_items.all():
+            eq = eq_map.get(str(item.equipment_id))
+            if eq:
+                eq.available_quantity += item.quantity
+                eq.save(update_fields=["available_quantity", "updated_at"])
 
     from apps.notifications.tasks import send_booking_cancelled_notification
     send_booking_cancelled_notification.delay(str(booking.id))

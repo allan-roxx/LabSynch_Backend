@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import requests
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -165,13 +166,35 @@ def process_mpesa_callback(payload: dict):
 
         # Safaricom ResultCode 0 denotes success
         if result_code == 0:
-            payment.payment_status = PaymentStatus.SUCCESS
-            
             # Extract actual receipt and amount from items array
             callback_items = stk_callback.get("CallbackMetadata", {}).get("Item", [])
             for item in callback_items:
                 if item.get("Name") == "MpesaReceiptNumber":
                     payment.mpesa_transaction_id = str(item.get("Value"))
+
+            booking = Booking.objects.select_for_update().get(id=payment.booking_id)
+            from apps.bookings.services import reserve_booking_inventory
+
+            try:
+                reserve_booking_inventory(booking)
+            except DjangoValidationError as exc:
+                # Payment succeeded but stock was taken by an earlier successful payer.
+                # Mark for refund workflow and keep booking pending.
+                payment.payment_status = PaymentStatus.REFUNDED
+                payment.save(
+                    update_fields=[
+                        "payment_status", "mpesa_transaction_id", "completed_at", "callback_response", "updated_at"
+                    ]
+                )
+                logger.warning(
+                    "Payment %s received but inventory could not be reserved for booking %s: %s",
+                    payment.transaction_ref,
+                    booking.booking_reference,
+                    exc,
+                )
+                return
+
+            payment.payment_status = PaymentStatus.SUCCESS
             
             payment.save(
                 update_fields=[
@@ -180,7 +203,6 @@ def process_mpesa_callback(payload: dict):
             )
             
             # Cascade success to Booking → RESERVED
-            booking = payment.booking
             booking.status = BookingStatus.RESERVED
             booking.save(update_fields=["status", "updated_at"])
 

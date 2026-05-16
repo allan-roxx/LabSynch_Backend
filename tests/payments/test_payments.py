@@ -5,7 +5,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.bookings.models import Booking, BookingStatus
+from apps.bookings.models import Booking, BookingItem, BookingStatus
+from apps.equipment.models import Equipment, EquipmentCategory
 from apps.payments.models import Payment, PaymentStatus
 from tests.factories import SchoolProfileFactory, UserFactory
 
@@ -19,6 +20,16 @@ def api_client():
 def setup_data(db):
     user = UserFactory(email="school@example.com")
     profile = SchoolProfileFactory(user=user)
+
+    category = EquipmentCategory.objects.create(category_name="Microscopes")
+    equipment = Equipment.objects.create(
+        category=category,
+        equipment_name="Basic Microscope",
+        equipment_code="MIC-PAY-001",
+        total_quantity=5,
+        available_quantity=5,
+        unit_price_per_day="100.00",
+    )
     
     booking = Booking.objects.create(
         booking_reference="BK-TEST-0001",
@@ -28,7 +39,14 @@ def setup_data(db):
         status=BookingStatus.PENDING,
         total_amount="1500.00",
     )
-    return {"user": user, "booking": booking}
+    BookingItem.objects.create(
+        booking=booking,
+        equipment=equipment,
+        quantity=2,
+        unit_price="100.00",
+        subtotal="800.00",
+    )
+    return {"user": user, "booking": booking, "equipment": equipment}
 
 
 @pytest.mark.django_db
@@ -72,6 +90,7 @@ class TestPaymentInitiation:
 class TestPaymentCallback:
     def test_successful_mpesa_callback_updates_models(self, api_client, setup_data):
         booking = setup_data["booking"]
+        equipment = setup_data["equipment"]
         
         # Setup pending payment
         payment = Payment.objects.create(
@@ -116,3 +135,5 @@ class TestPaymentCallback:
         assert payment.payment_status == PaymentStatus.SUCCESS
         assert payment.mpesa_transaction_id == "NLJ7RT61SV"
         assert booking.status == BookingStatus.RESERVED
+        equipment.refresh_from_db()
+        assert equipment.available_quantity == 3

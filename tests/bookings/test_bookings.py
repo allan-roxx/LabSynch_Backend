@@ -39,7 +39,7 @@ def setup_data(db):
 
 @pytest.mark.django_db
 class TestBookingCreation:
-    def test_booking_decreases_available_quantity(self, api_client, setup_data):
+    def test_booking_creation_keeps_available_quantity_unchanged_until_payment(self, api_client, setup_data):
         user = setup_data["user"]
         equipment = setup_data["equipment"]
         
@@ -63,9 +63,9 @@ class TestBookingCreation:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data["success"] is True
         
-        # Check available quantity is updated
+        # Inventory is reserved only after successful payment.
         equipment.refresh_from_db()
-        assert equipment.available_quantity == 3
+        assert equipment.available_quantity == 5
         assert equipment.total_quantity == 5
         
         booking = Booking.objects.get(id=response.data["data"]["id"])
@@ -103,7 +103,7 @@ class TestBookingCreation:
 
 @pytest.mark.django_db
 class TestBookingCancellation:
-    def test_cancel_booking_restores_quantity(self, api_client, setup_data):
+    def test_cancel_pending_booking_does_not_change_quantity(self, api_client, setup_data):
         user = setup_data["user"]
         equipment = setup_data["equipment"]
         
@@ -124,7 +124,7 @@ class TestBookingCancellation:
         booking_id = res.data["data"]["id"]
         
         equipment.refresh_from_db()
-        assert equipment.available_quantity == 2
+        assert equipment.available_quantity == 5
         
         # Cancel booking
         cancel_url = reverse("booking-cancel", args=[booking_id])
@@ -135,6 +135,6 @@ class TestBookingCancellation:
         booking = Booking.objects.get(id=booking_id)
         assert booking.status == BookingStatus.CANCELLED
         
-        # Quantity should be restored
+        # Quantity remains unchanged because PENDING bookings do not reserve inventory.
         equipment.refresh_from_db()
         assert equipment.available_quantity == 5
