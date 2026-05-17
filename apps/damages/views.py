@@ -5,7 +5,9 @@ Views for Damages app.
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from common.exports import export_csv, export_pdf
 from common.permissions import IsAdminUser, IsSchoolUser
@@ -19,6 +21,7 @@ from .serializers import (
     DamageReportSettleSerializer,
 )
 from .services import create_damage_report, resolve_damage_report, settle_damage_report_by_school
+from .services import process_damage_settlement_callback
 
 
 @extend_schema_view(
@@ -44,6 +47,7 @@ class DamageReportViewSet(viewsets.ModelViewSet):
         "booking_item__equipment",
         "reported_by"
     )
+    filterset_fields = ("equipment_return__booking", "resolution_status", "severity")
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy", "resolve", "export"]:
@@ -111,8 +115,8 @@ class DamageReportViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         request=DamageReportSettleSerializer,
-        responses={200: DamageReportReadSerializer},
-        summary="School settles own damage liability",
+        responses={201: OpenApiParameter},
+        summary="Initiate M-Pesa settlement for school damage liability",
     )
     @action(detail=True, methods=["post"])
     def settle(self, request, pk=None):
@@ -120,17 +124,19 @@ class DamageReportViewSet(viewsets.ModelViewSet):
         serializer = DamageReportSettleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        updated_report = settle_damage_report_by_school(
+        settlement = settle_damage_report_by_school(
             damage_report=report,
             school_user=request.user,
-            amount_paid=serializer.validated_data.get("amount_paid"),
+            phone_number=serializer.validated_data["phone_number"],
         )
-
-        read_serializer = DamageReportReadSerializer(updated_report)
         return success_response(
-            data=read_serializer.data,
-            message="Liability payment recorded successfully.",
-            status_code=status.HTTP_200_OK,
+            data={
+                "settlement_id": settlement.id,
+                "transaction_ref": settlement.transaction_ref,
+                "status": settlement.payment_status,
+            },
+            message="M-Pesa settlement prompt initiated successfully.",
+            status_code=status.HTTP_201_CREATED,
         )
 
     _EXPORT_HEADERS = [
@@ -168,3 +174,12 @@ class DamageReportViewSet(viewsets.ModelViewSet):
         if fmt == "pdf":
             return export_pdf("Damage Reports", self._EXPORT_HEADERS, rows, "damage_reports")
         return export_csv(self._EXPORT_HEADERS, rows, "damage_reports")
+
+
+@extend_schema(exclude=True)
+class DamageMPesaCallbackView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        process_damage_settlement_callback(request.data)
+        return Response({"ResultCode": 0, "ResultDesc": "Success"})

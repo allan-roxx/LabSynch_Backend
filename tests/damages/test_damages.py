@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.bookings.models import Booking, BookingItem, BookingStatus
-from apps.damages.models import DamageReport, DamageSeverity, ResolutionStatus
+from apps.damages.models import DamagePaymentStatus, DamageReport, DamageSeverity, ResolutionStatus, DamageSettlementPayment
 from apps.equipment.models import Equipment, EquipmentCategory
 from apps.issuances.models import EquipmentIssuance, EquipmentReturn
 from apps.users.models import LiabilityStatus
@@ -105,7 +105,7 @@ class TestDamageReports:
         assert report.resolution_status == ResolutionStatus.CHARGED
         assert report.repair_cost == 250.00
 
-    def test_school_user_can_settle_own_damage_liability(self, api_client, setup_data):
+    def test_school_user_can_initiate_own_damage_settlement(self, api_client, setup_data):
         school = setup_data["school"]
         booking_item = setup_data["booking_item"]
         equipment_return = setup_data["equipment_return"]
@@ -130,12 +130,71 @@ class TestDamageReports:
         api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['data']['tokens']['access']}")
 
         settle_url = reverse("damage-settle", args=[report.id])
-        settle_res = api_client.post(settle_url, {"amount_paid": "300.00"}, format="json")
+        settle_res = api_client.post(settle_url, {"phone_number": "0712345678"}, format="json")
 
-        assert settle_res.status_code == status.HTTP_200_OK
+        assert settle_res.status_code == status.HTTP_201_CREATED
         report.refresh_from_db()
         school_profile.refresh_from_db()
 
+        assert report.resolution_status == ResolutionStatus.CHARGED
+        assert float(report.amount_paid) == 0.00
+        assert school_profile.liability_status == LiabilityStatus.HAS_OUTSTANDING
+
+        settlement = DamageSettlementPayment.objects.get(id=settle_res.data["data"]["settlement_id"])
+        assert settlement.payment_status == DamagePaymentStatus.PENDING
+
+    def test_damage_settlement_callback_marks_liability_paid(self, api_client, setup_data):
+        school = setup_data["school"]
+        booking_item = setup_data["booking_item"]
+        equipment_return = setup_data["equipment_return"]
+
+        report = DamageReport.objects.create(
+            equipment_return=equipment_return,
+            booking_item=booking_item,
+            reported_by=setup_data["admin"],
+            quantity_damaged=1,
+            severity=DamageSeverity.MODERATE,
+            description="Cracked eyepiece",
+            repair_cost="300.00",
+            amount_paid="0.00",
+            resolution_status=ResolutionStatus.CHARGED,
+        )
+
+        school_profile = equipment_return.booking.school_profile
+        school_profile.liability_status = LiabilityStatus.HAS_OUTSTANDING
+        school_profile.save(update_fields=["liability_status", "updated_at"])
+
+        res = api_client.post(reverse("auth-login"), {"email": school.email, "password": "TestPass123!"})
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['data']['tokens']['access']}")
+
+        settle_url = reverse("damage-settle", args=[report.id])
+        settle_res = api_client.post(settle_url, {"phone_number": "0712345678"}, format="json")
+        assert settle_res.status_code == status.HTTP_201_CREATED
+
+        settlement = DamageSettlementPayment.objects.get(id=settle_res.data["data"]["settlement_id"])
+        callback_url = reverse("damage-mpesa-callback")
+        callback_payload = {
+            "Body": {
+                "stkCallback": {
+                    "CheckoutRequestID": settlement.mpesa_checkout_request_id,
+                    "ResultCode": 0,
+                    "CallbackMetadata": {
+                        "Item": [
+                            {"Name": "Amount", "Value": 300.00},
+                            {"Name": "MpesaReceiptNumber", "Value": "DMG12345"},
+                        ]
+                    },
+                }
+            }
+        }
+        callback_res = api_client.post(callback_url, callback_payload, format="json")
+        assert callback_res.status_code == status.HTTP_200_OK
+
+        settlement.refresh_from_db()
+        report.refresh_from_db()
+        school_profile.refresh_from_db()
+
+        assert settlement.payment_status == DamagePaymentStatus.SUCCESS
         assert report.resolution_status == ResolutionStatus.PAID
         assert float(report.amount_paid) == 300.00
         assert school_profile.liability_status == LiabilityStatus.CLEAR
@@ -160,6 +219,6 @@ class TestDamageReports:
         api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['data']['tokens']['access']}")
 
         settle_url = reverse("damage-settle", args=[report.id])
-        settle_res = api_client.post(settle_url, {"amount_paid": "120.00"}, format="json")
+        settle_res = api_client.post(settle_url, {"phone_number": "0712345678"}, format="json")
 
         assert settle_res.status_code == status.HTTP_404_NOT_FOUND

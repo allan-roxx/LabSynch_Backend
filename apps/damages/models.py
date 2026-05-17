@@ -20,6 +20,12 @@ class ResolutionStatus(models.TextChoices):
     RESOLVED = "RESOLVED", "Resolved and Closed"
 
 
+class DamagePaymentStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    SUCCESS = "SUCCESS", "Success"
+    FAILED = "FAILED", "Failed"
+
+
 class DamageReport(BaseModel):
     """
     Log of equipment damage reported upon return.
@@ -83,3 +89,37 @@ class DamageReport(BaseModel):
         if self.repair_cost is None:
             return 0
         return max(self.repair_cost - self.amount_paid, 0)
+
+
+class DamageSettlementPayment(BaseModel):
+    """
+    M-Pesa settlement attempts for damage liabilities.
+    Updated asynchronously by the Daraja callback.
+    """
+
+    transaction_ref = models.CharField(max_length=50, unique=True, db_index=True)
+    damage_report = models.ForeignKey(
+        DamageReport,
+        on_delete=models.PROTECT,
+        related_name="settlement_payments",
+    )
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2)
+    mpesa_phone_number = models.CharField(max_length=20, blank=True, null=True)
+    mpesa_transaction_id = models.CharField(max_length=50, blank=True, null=True, unique=True)
+    mpesa_checkout_request_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    payment_status = models.CharField(
+        max_length=20,
+        choices=DamagePaymentStatus.choices,
+        default=DamagePaymentStatus.PENDING,
+    )
+    initiated_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
+    callback_response = models.JSONField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-initiated_at"]
+        verbose_name = "Damage Settlement Payment"
+        verbose_name_plural = "Damage Settlement Payments"
+
+    def __str__(self):
+        return f"{self.transaction_ref} for damage {self.damage_report_id}"

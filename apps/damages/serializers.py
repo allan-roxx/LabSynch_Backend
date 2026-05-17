@@ -60,4 +60,4 @@ class DamageReportResolveSerializer(serializers.Serializer):
 
 
 class DamageReportSettleSerializer(serializers.Serializer):
-    amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    phone_number = serializers.CharField(max_length=20)
