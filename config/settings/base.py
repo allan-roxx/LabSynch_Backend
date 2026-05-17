@@ -129,9 +129,30 @@ TEMPLATES = [
 # Database
 # =============================================================================
 
-DATABASES = {
-    "default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3"),
-}
+database_url = env("DATABASE_URL", default="")
+postgres_db = env("POSTGRES_DB", default="")
+postgres_user = env("POSTGRES_USER", default="")
+
+if database_url:
+    DATABASES = {
+        "default": env.db("DATABASE_URL"),
+    }
+elif postgres_db and postgres_user:
+    # Docker-friendly fallback: use postgres service credentials when DATABASE_URL is omitted.
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": postgres_db,
+            "USER": postgres_user,
+            "PASSWORD": env("POSTGRES_PASSWORD", default=""),
+            "HOST": env("POSTGRES_HOST", default="db"),
+            "PORT": env("POSTGRES_PORT", default="5432"),
+        }
+    }
+else:
+    DATABASES = {
+        "default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3"),
+    }
 
 
 # =============================================================================

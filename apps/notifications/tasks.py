@@ -20,7 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 def _send_email_or_log(*, subject: str, message: str, recipient_list: list[str]) -> None:
-    """Best-effort email delivery; notification creation must not depend on SMTP health."""
+    """Best-effort email delivery; disabled by default when no email service is configured."""
+    if not getattr(settings, "ENABLE_NOTIFICATION_EMAILS", False):
+        logger.info("Notification emails disabled; skipping email for %s", recipient_list)
+        return
+
     try:
         send_mail(
             subject=subject,
