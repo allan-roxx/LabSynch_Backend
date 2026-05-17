@@ -16,18 +16,20 @@ Usage::
 """
 
 import logging
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.bookings.models import Booking, BookingItem, CartItem
-from apps.damages.models import DamageReport
+from apps.bookings.models import Booking, BookingItem, BookingStatus, CartItem
+from apps.damages.models import DamageReport, DamageSeverity, ResolutionStatus
 from apps.equipment.models import Equipment, EquipmentCategory, PricingRule, TransportZone
 from apps.issuances.models import EquipmentIssuance, EquipmentReturn
-from apps.payments.models import Payment
+from apps.maintenance.models import MaintenanceSchedule, MaintenanceStatus, MaintenanceType
+from apps.payments.models import Payment, PaymentStatus
 from apps.users.models import AccountStatus, SchoolProfile, UserType
 
 logger = logging.getLogger(__name__)
@@ -692,6 +694,145 @@ SCHOOLS = [
 ]
 
 
+HISTORICAL_ACTIVITY = [
+    {
+        "booking_reference": "BK-2026-HIST-001",
+        "transaction_ref": "TXN-2026-HIST-001",
+        "school_email": "alpha.high@school.labsynch.co.ke",
+        "equipment_code": "EQP-007",
+        "quantity": 2,
+        "pickup_date": date(2026, 1, 10),
+        "return_date": date(2026, 1, 13),
+        "status": BookingStatus.COMPLETED,
+        "payment_status": PaymentStatus.SUCCESS,
+        "payment_date": date(2026, 1, 10),
+        "returned_date": date(2026, 1, 13),
+        "maintenance": {
+            "equipment_code": "EQP-007",
+            "scheduled_date": date(2026, 1, 15),
+            "maintenance_type": MaintenanceType.CALIBRATION,
+            "status": MaintenanceStatus.COMPLETED,
+        },
+        "damage": {
+            "severity": DamageSeverity.MINOR,
+            "description": "Minor hinge adjustment recorded after return.",
+            "quantity_damaged": 1,
+            "repair_cost": Decimal("150.00"),
+            "amount_paid": Decimal("150.00"),
+            "resolution_status": ResolutionStatus.PAID,
+        },
+    },
+    {
+        "booking_reference": "BK-2026-HIST-002",
+        "transaction_ref": "TXN-2026-HIST-002",
+        "school_email": "thika.boys@school.labsynch.co.ke",
+        "equipment_code": "EQP-021",
+        "quantity": 6,
+        "pickup_date": date(2026, 1, 24),
+        "return_date": date(2026, 1, 27),
+        "status": BookingStatus.COMPLETED,
+        "payment_status": PaymentStatus.SUCCESS,
+        "payment_date": date(2026, 1, 24),
+        "returned_date": date(2026, 1, 27),
+        "maintenance": {
+            "equipment_code": "EQP-021",
+            "scheduled_date": date(2026, 1, 29),
+            "maintenance_type": MaintenanceType.ROUTINE,
+            "status": MaintenanceStatus.COMPLETED,
+        },
+        "damage": {
+            "severity": DamageSeverity.MODERATE,
+            "description": "Burner nozzle inspection and replacement after extended use.",
+            "quantity_damaged": 2,
+            "repair_cost": Decimal("400.00"),
+            "amount_paid": Decimal("250.00"),
+            "resolution_status": ResolutionStatus.CHARGED,
+        },
+    },
+    {
+        "booking_reference": "BK-2026-HIST-003",
+        "transaction_ref": "TXN-2026-HIST-003",
+        "school_email": "double.impact@school.labsynch.co.ke",
+        "equipment_code": "EQP-011",
+        "quantity": 1,
+        "pickup_date": date(2026, 2, 4),
+        "return_date": date(2026, 2, 7),
+        "status": BookingStatus.COMPLETED,
+        "payment_status": PaymentStatus.SUCCESS,
+        "payment_date": date(2026, 2, 4),
+        "returned_date": date(2026, 2, 7),
+        "maintenance": {
+            "equipment_code": "EQP-011",
+            "scheduled_date": date(2026, 2, 10),
+            "maintenance_type": MaintenanceType.CALIBRATION,
+            "status": MaintenanceStatus.COMPLETED,
+        },
+        "damage": {
+            "severity": DamageSeverity.MINOR,
+            "description": "Calibration seal replaced after return handling.",
+            "quantity_damaged": 1,
+            "repair_cost": Decimal("120.00"),
+            "amount_paid": Decimal("120.00"),
+            "resolution_status": ResolutionStatus.RESOLVED,
+        },
+    },
+    {
+        "booking_reference": "BK-2026-HIST-004",
+        "transaction_ref": "TXN-2026-HIST-004",
+        "school_email": "kiganjo.secondary@school.labsynch.co.ke",
+        "equipment_code": "EQP-026",
+        "quantity": 20,
+        "pickup_date": date(2026, 2, 18),
+        "return_date": date(2026, 2, 21),
+        "status": BookingStatus.RETURNED,
+        "payment_status": PaymentStatus.SUCCESS,
+        "payment_date": date(2026, 2, 18),
+        "returned_date": date(2026, 2, 21),
+        "maintenance": {
+            "equipment_code": "EQP-026",
+            "scheduled_date": date(2026, 2, 24),
+            "maintenance_type": MaintenanceType.ROUTINE,
+            "status": MaintenanceStatus.SCHEDULED,
+        },
+        "damage": {
+            "severity": DamageSeverity.MODERATE,
+            "description": "Lens fogging and strap wear noted during check-in.",
+            "quantity_damaged": 5,
+            "repair_cost": Decimal("300.00"),
+            "amount_paid": Decimal("0.00"),
+            "resolution_status": ResolutionStatus.PENDING,
+        },
+    },
+    {
+        "booking_reference": "BK-2026-HIST-005",
+        "transaction_ref": "TXN-2026-HIST-005",
+        "school_email": "alpha.high@school.labsynch.co.ke",
+        "equipment_code": "EQP-033",
+        "quantity": 3,
+        "pickup_date": date(2026, 3, 11),
+        "return_date": date(2026, 3, 14),
+        "status": BookingStatus.COMPLETED,
+        "payment_status": PaymentStatus.SUCCESS,
+        "payment_date": date(2026, 3, 11),
+        "returned_date": date(2026, 3, 14),
+        "maintenance": {
+            "equipment_code": "EQP-033",
+            "scheduled_date": date(2026, 3, 18),
+            "maintenance_type": MaintenanceType.ROUTINE,
+            "status": MaintenanceStatus.COMPLETED,
+        },
+        "damage": {
+            "severity": DamageSeverity.SEVERE,
+            "description": "Bottle cap leak and reagent spillage replacement.",
+            "quantity_damaged": 1,
+            "repair_cost": Decimal("650.00"),
+            "amount_paid": Decimal("350.00"),
+            "resolution_status": ResolutionStatus.CHARGED,
+        },
+    },
+]
+
+
 class Command(BaseCommand):
     help = (
         "Seeds the database with equipment categories, equipment items, "
@@ -715,6 +856,7 @@ class Command(BaseCommand):
             self._seed_pricing_rules(category_map)
             zone_map = self._seed_transport_zones()
             self._seed_schools(zone_map)
+            self._seed_historical_activity()
 
         self.stdout.write(self.style.SUCCESS("\nSeed complete."))
 
@@ -916,3 +1058,154 @@ class Command(BaseCommand):
         self.stdout.write(
             "  IMPORTANT: Change passwords before using in production.\n"
         )
+
+    def _get_seed_admin(self):
+        admin = User.objects.filter(user_type=UserType.ADMIN).order_by("created_at").first()
+        if admin:
+            return admin
+
+        admin, created = User.objects.get_or_create(
+            email="seed.admin@labsynch.local",
+            defaults={
+                "full_name": "Seed Admin",
+                "phone_number": "+254700000999",
+                "user_type": UserType.ADMIN,
+                "is_verified": True,
+                "is_staff": True,
+                "is_superuser": True,
+                "terms_accepted": True,
+                "terms_accepted_at": timezone.now(),
+            },
+        )
+        if created:
+            admin.set_password("SeedAdmin@2026!")
+            admin.save(update_fields=["password"])
+        return admin
+
+    def _backdate_instance(self, model, pk, created_on, updated_on=None, **extra_fields):
+        created_dt = timezone.make_aware(datetime.combine(created_on, datetime.min.time()))
+        updated_dt = timezone.make_aware(datetime.combine(updated_on or created_on, datetime.min.time()))
+        update_data = {"created_at": created_dt, "updated_at": updated_dt}
+        update_data.update(extra_fields)
+        model.objects.filter(pk=pk).update(**update_data)
+
+    def _seed_historical_activity(self):
+        self.stdout.write("\nSeeding historical bookings, payments, maintenance, and damages …")
+        admin_user = self._get_seed_admin()
+
+        for index, item in enumerate(HISTORICAL_ACTIVITY, start=1):
+            school = SchoolProfile.objects.select_related("user").get(user__email=item["school_email"])
+            equipment = Equipment.objects.select_related("category").get(equipment_code=item["equipment_code"])
+
+            duration_days = (item["return_date"] - item["pickup_date"]).days
+            subtotal = (equipment.unit_price_per_day * item["quantity"] * duration_days).quantize(Decimal("0.01"))
+
+            booking, created = Booking.objects.get_or_create(
+                booking_reference=item["booking_reference"],
+                defaults={
+                    "school_profile": school,
+                    "pickup_date": item["pickup_date"],
+                    "return_date": item["return_date"],
+                    "status": item["status"],
+                    "total_amount": subtotal,
+                    "special_instructions": f"Historical seed booking {index}",
+                    "requires_transport": False,
+                    "transport_cost": Decimal("0.00"),
+                    "overdue_penalty": Decimal("0.00"),
+                    "penalty_cleared": True,
+                    "penalty_carried_forward": Decimal("0.00"),
+                },
+            )
+            if created:
+                self._backdate_instance(Booking, booking.pk, item["pickup_date"], item["return_date"])
+            booking.status = item["status"]
+            booking.total_amount = subtotal
+            booking.save(update_fields=["status", "total_amount", "updated_at"])
+
+            booking_item, bi_created = BookingItem.objects.get_or_create(
+                booking=booking,
+                equipment=equipment,
+                defaults={
+                    "quantity": item["quantity"],
+                    "unit_price": equipment.unit_price_per_day,
+                    "subtotal": subtotal,
+                    "personnel_cost": Decimal("0.00"),
+                },
+            )
+            if bi_created:
+                self._backdate_instance(BookingItem, booking_item.pk, item["pickup_date"], item["return_date"])
+
+            payment, payment_created = Payment.objects.get_or_create(
+                transaction_ref=item["transaction_ref"],
+                defaults={
+                    "booking": booking,
+                    "amount_paid": subtotal,
+                    "payment_status": item["payment_status"],
+                    "payment_method": "MPESA",
+                    "mpesa_phone_number": school.user.phone_number or "+254700000000",
+                },
+            )
+            if payment_created:
+                self._backdate_instance(
+                    Payment,
+                    payment.pk,
+                    item["payment_date"],
+                    item["payment_date"],
+                    completed_at=timezone.make_aware(datetime.combine(item["payment_date"], datetime.min.time())),
+                )
+            payment.booking = booking
+            payment.amount_paid = subtotal
+            payment.payment_status = item["payment_status"]
+            payment.payment_method = "MPESA"
+            payment.save(update_fields=["booking", "amount_paid", "payment_status", "payment_method", "updated_at"])
+
+            return_obj, return_created = EquipmentReturn.objects.get_or_create(
+                booking=booking,
+                defaults={
+                    "received_by": admin_user,
+                    "returned_by": school.user,
+                    "has_damage": True,
+                    "return_notes": "Historical seed return.",
+                },
+            )
+            if return_created:
+                self._backdate_instance(EquipmentReturn, return_obj.pk, item["returned_date"], item["returned_date"])
+
+            maintenance = item["maintenance"]
+            maintenance_obj, maintenance_created = MaintenanceSchedule.objects.get_or_create(
+                equipment=Equipment.objects.get(equipment_code=maintenance["equipment_code"]),
+                scheduled_date=maintenance["scheduled_date"],
+                maintenance_type=maintenance["maintenance_type"],
+                defaults={
+                    "description": f"Historical seed maintenance for {equipment.equipment_name}.",
+                    "status": maintenance["status"],
+                    "technician_name": "Seed Technician",
+                    "cost": Decimal("250.00"),
+                    "notes": "Seeded historical maintenance record.",
+                },
+            )
+            if maintenance_created:
+                self._backdate_instance(MaintenanceSchedule, maintenance_obj.pk, maintenance["scheduled_date"], maintenance["scheduled_date"])
+
+            damage = item["damage"]
+            damage_obj, damage_created = DamageReport.objects.get_or_create(
+                equipment_return=return_obj,
+                booking_item=booking_item,
+                defaults={
+                    "reported_by": admin_user,
+                    "quantity_damaged": damage["quantity_damaged"],
+                    "severity": damage["severity"],
+                    "description": damage["description"],
+                    "photo_urls": [],
+                    "repair_cost": damage["repair_cost"],
+                    "amount_paid": damage["amount_paid"],
+                    "resolution_status": damage["resolution_status"],
+                },
+            )
+            if damage_created:
+                self._backdate_instance(DamageReport, damage_obj.pk, item["returned_date"], item["returned_date"])
+
+            self.stdout.write(
+                f"  [seeded] {booking.booking_reference} | {payment.transaction_ref} | "
+                f"{maintenance_obj.maintenance_type} | {damage_obj.severity}"
+            )

@@ -39,6 +39,9 @@ class BookingItemReadSerializer(serializers.ModelSerializer):
 class BookingReadSerializer(serializers.ModelSerializer):
     booking_items = BookingItemReadSerializer(many=True, read_only=True)
     school_name = serializers.CharField(source="school_profile.school_name", read_only=True)
+    school_user_id = serializers.UUIDField(source="school_profile.user.id", read_only=True)
+    school_user_name = serializers.CharField(source="school_profile.user.full_name", read_only=True)
+    school_user_email = serializers.CharField(source="school_profile.user.email", read_only=True)
     accruing_penalty = serializers.SerializerMethodField()
 
     class Meta:
@@ -47,6 +50,9 @@ class BookingReadSerializer(serializers.ModelSerializer):
             "id",
             "booking_reference",
             "school_name",
+            "school_user_id",
+            "school_user_name",
+            "school_user_email",
             "pickup_date",
             "return_date",
             "status",
