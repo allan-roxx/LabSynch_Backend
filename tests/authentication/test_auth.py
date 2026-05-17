@@ -315,8 +315,7 @@ class TestPasswordResetRequest:
 
     url = reverse("auth-password-reset")
 
-    @override_settings(DEBUG=True)
-    def test_returns_dev_reset_url_for_existing_user_in_debug(self, api_client, school_user):
+    def test_returns_dev_reset_url_for_existing_user(self, api_client, school_user):
         response = api_client.post(
             self.url,
             {"email": school_user.email},
@@ -328,7 +327,6 @@ class TestPasswordResetRequest:
         assert "dev_reset_url" in (response.data["data"] or {})
         assert "/reset-password?uid=" in response.data["data"]["dev_reset_url"]
 
-    @override_settings(DEBUG=True)
     def test_no_dev_reset_url_for_nonexistent_email(self, api_client):
         response = api_client.post(
             self.url,

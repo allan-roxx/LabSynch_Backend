@@ -230,7 +230,8 @@ def request_password_reset(email):
     Send a password reset email if the user exists.
 
     For security, always return success even if the email is not found.
-    In DEBUG mode, returns a dev reset link in the payload for local testing.
+    Returns a reset link payload for existing users so frontend can surface it
+    when SMTP is unavailable (including production-mock deployments).
     """
     try:
         user = User.objects.get(email__iexact=email)
@@ -271,11 +272,9 @@ def request_password_reset(email):
             exc_info=True,
         )
 
-    if settings.DEBUG:
-        return {
-            "dev_reset_url": reset_link,
-        }
-    return {}
+    return {
+        "dev_reset_url": reset_link,
+    }
 
 
 def reset_password(uid, token, new_password):
