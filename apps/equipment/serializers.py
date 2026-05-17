@@ -40,6 +40,22 @@ class EquipmentImageSerializer(serializers.ModelSerializer):
         fields = ["id", "image_url", "is_primary", "display_order"]
 
 
+class EquipmentImageUploadSerializer(serializers.Serializer):
+    image = serializers.ImageField(required=True)
+    is_primary = serializers.BooleanField(required=False, default=False)
+    display_order = serializers.IntegerField(required=False, min_value=0, default=0)
+
+
+class EquipmentImageUpdateSerializer(serializers.Serializer):
+    image = serializers.ImageField(required=False)
+    is_primary = serializers.BooleanField(required=False)
+    display_order = serializers.IntegerField(required=False, min_value=0)
+
+
+class EquipmentStockAppendSerializer(serializers.Serializer):
+    additional_quantity = serializers.IntegerField(min_value=1)
+
+
 class EquipmentReadSerializer(serializers.ModelSerializer):
     category = EquipmentCategorySerializer(read_only=True)
     images = EquipmentImageSerializer(many=True, read_only=True)

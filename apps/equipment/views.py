@@ -3,8 +3,15 @@ Views for Equipment app.
 All responses must use the common envelope.
 """
 
+import os
+
+from django.core.files.storage import default_storage
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import FormParser, MultiPartParser
 
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -14,15 +21,19 @@ from apps.bookings.services import get_available_quantity
 from common.exports import export_csv, export_pdf
 from common.permissions import IsAdminUser
 from common.utils import success_response
-from .models import Equipment, EquipmentCategory, PricingRule, TransportZone
+from .models import Equipment, EquipmentCategory, EquipmentImage, PricingRule, TransportZone
 from .serializers import (
     EquipmentCategorySerializer,
+    EquipmentImageSerializer,
+    EquipmentImageUpdateSerializer,
+    EquipmentImageUploadSerializer,
     EquipmentReadSerializer,
+    EquipmentStockAppendSerializer,
     EquipmentWriteSerializer,
     PricingRuleSerializer,
     TransportZoneSerializer,
 )
-from .services import create_equipment, deactivate_equipment, update_equipment
+from .services import append_equipment_stock, create_equipment, deactivate_equipment, update_equipment
 
 
 class TransportZoneViewSet(viewsets.ModelViewSet):
@@ -141,6 +152,17 @@ class EquipmentViewSet(viewsets.ModelViewSet):
     ordering_fields = ("equipment_name", "unit_price_per_day", "available_quantity", "created_at")
     ordering = ("equipment_name",)
 
+    @staticmethod
+    def _store_image(request, equipment: Equipment, image_file) -> str:
+        stem, ext = os.path.splitext(image_file.name)
+        safe_stem = slugify(stem) or "image"
+        filename = f"{timezone.now().strftime('%Y%m%d%H%M%S%f')}_{safe_stem}{ext.lower()}"
+        path = default_storage.save(f"equipment/{equipment.id}/{filename}", image_file)
+        image_url = default_storage.url(path)
+        if not image_url.startswith("http"):
+            image_url = request.build_absolute_uri(image_url)
+        return image_url
+
     def get_queryset(self):
         queryset = Equipment.objects.select_related("category").prefetch_related("images")
         if getattr(self.request.user, "user_type", None) != "ADMIN":
@@ -256,6 +278,89 @@ class EquipmentViewSet(viewsets.ModelViewSet):
         if fmt == "pdf":
             return export_pdf("Equipment Catalog", self._EXPORT_HEADERS, rows, "equipment")
         return export_csv(self._EXPORT_HEADERS, rows, "equipment")
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAdminUser])
+    def add_stock(self, request, pk=None):
+        """Append stock for a specific equipment item."""
+        equipment = self.get_object()
+        serializer = EquipmentStockAppendSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        updated = append_equipment_stock(
+            equipment=equipment,
+            additional_quantity=serializer.validated_data["additional_quantity"],
+        )
+        return success_response(
+            data=EquipmentReadSerializer(updated).data,
+            message="Equipment stock updated successfully.",
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticated, IsAdminUser],
+        parser_classes=[MultiPartParser, FormParser],
+    )
+    def upload_image(self, request, pk=None):
+        """Upload and append a new image to an equipment item."""
+        equipment = self.get_object()
+        serializer = EquipmentImageUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        is_primary = serializer.validated_data.get("is_primary", False)
+        if is_primary:
+            equipment.images.update(is_primary=False)
+
+        image_url = self._store_image(request, equipment, serializer.validated_data["image"])
+        image = EquipmentImage.objects.create(
+            equipment=equipment,
+            image_url=image_url,
+            is_primary=is_primary,
+            display_order=serializer.validated_data.get("display_order", 0),
+        )
+
+        return success_response(
+            data=EquipmentImageSerializer(image).data,
+            message="Equipment image uploaded successfully.",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+    @action(
+        detail=True,
+        methods=["patch"],
+        permission_classes=[IsAuthenticated, IsAdminUser],
+        parser_classes=[MultiPartParser, FormParser],
+        url_path=r"images/(?P<image_id>[^/.]+)",
+    )
+    def update_image(self, request, pk=None, image_id=None):
+        """Replace image file or update image metadata for an equipment image."""
+        equipment = self.get_object()
+        image = get_object_or_404(EquipmentImage, id=image_id, equipment=equipment)
+
+        serializer = EquipmentImageUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+
+        update_fields = ["updated_at"]
+        if "image" in validated:
+            image.image_url = self._store_image(request, equipment, validated["image"])
+            update_fields.append("image_url")
+
+        if "display_order" in validated:
+            image.display_order = validated["display_order"]
+            update_fields.append("display_order")
+
+        if "is_primary" in validated:
+            if validated["is_primary"]:
+                equipment.images.exclude(id=image.id).update(is_primary=False)
+            image.is_primary = validated["is_primary"]
+            update_fields.append("is_primary")
+
+        image.save(update_fields=update_fields)
+        return success_response(
+            data=EquipmentImageSerializer(image).data,
+            message="Equipment image updated successfully.",
+        )
 
 
 class PricingRuleViewSet(viewsets.ModelViewSet):

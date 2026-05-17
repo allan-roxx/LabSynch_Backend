@@ -63,3 +63,23 @@ def deactivate_equipment(equipment: Equipment):
     """
     equipment.deactivate()
     return equipment
+
+
+@transaction.atomic
+def append_equipment_stock(equipment: Equipment, additional_quantity: int) -> Equipment:
+    """
+    Increase both total and available quantities by an admin-provided amount.
+    """
+    if additional_quantity <= 0:
+        raise ValidationError({"additional_quantity": "Quantity to add must be greater than zero."})
+
+    equipment.total_quantity += additional_quantity
+    equipment.available_quantity += additional_quantity
+
+    try:
+        equipment.full_clean()
+        equipment.save(update_fields=["total_quantity", "available_quantity", "updated_at"])
+    except ValidationError as e:
+        raise ValidationError(e.message_dict)
+
+    return equipment
