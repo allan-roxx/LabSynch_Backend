@@ -191,9 +191,10 @@ class PasswordResetRequestView(APIView):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        request_password_reset(email=serializer.validated_data["email"])
+        reset_payload = request_password_reset(email=serializer.validated_data["email"])
 
         return success_response(
+            data=reset_payload,
             message="If an account with this email exists, a password reset link has been sent.",
         )
 

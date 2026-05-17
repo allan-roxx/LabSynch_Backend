@@ -230,17 +230,18 @@ def request_password_reset(email):
     Send a password reset email if the user exists.
 
     For security, always return success even if the email is not found.
+    In DEBUG mode, returns a dev reset link in the payload for local testing.
     """
     try:
         user = User.objects.get(email__iexact=email)
     except User.DoesNotExist:
         # Don't reveal whether the email exists
         logger.info("Password reset requested for non-existent email: %s", email)
-        return
+        return {}
 
     uid = urlsafe_base64_encode(force_bytes(str(user.pk)))
     token = default_token_generator.make_token(user)
-    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
     reset_link = f"{frontend_url}/reset-password?uid={uid}&token={token}"
 
     subject = "LabSynch — Password Reset Request"
@@ -269,6 +270,12 @@ def request_password_reset(email):
             str(exc),
             exc_info=True,
         )
+
+    if settings.DEBUG:
+        return {
+            "dev_reset_url": reset_link,
+        }
+    return {}
 
 
 def reset_password(uid, token, new_password):

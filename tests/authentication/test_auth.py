@@ -7,6 +7,7 @@ email verification, token refresh, logout.
 
 import pytest
 from django.contrib.auth.tokens import default_token_generator
+from django.test import override_settings
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -301,3 +302,40 @@ class TestLogout:
         )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# ==========================================================================
+# Password Reset Request Tests
+# ==========================================================================
+
+
+@pytest.mark.django_db
+class TestPasswordResetRequest:
+    """Tests for POST /api/auth/password-reset/"""
+
+    url = reverse("auth-password-reset")
+
+    @override_settings(DEBUG=True)
+    def test_returns_dev_reset_url_for_existing_user_in_debug(self, api_client, school_user):
+        response = api_client.post(
+            self.url,
+            {"email": school_user.email},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["success"] is True
+        assert "dev_reset_url" in (response.data["data"] or {})
+        assert "/reset-password?uid=" in response.data["data"]["dev_reset_url"]
+
+    @override_settings(DEBUG=True)
+    def test_no_dev_reset_url_for_nonexistent_email(self, api_client):
+        response = api_client.post(
+            self.url,
+            {"email": "missing@example.com"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["success"] is True
+        assert response.data["data"] == {}
