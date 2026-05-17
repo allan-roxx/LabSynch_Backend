@@ -60,19 +60,18 @@ class RegisterView(APIView):
 
         data = dict(UserResponseSerializer(user).data)
 
-        # In DEBUG mode include the verification link directly in the response so
-        # developers don't need to configure email to test the registration flow.
-        if settings.DEBUG:
-            from django.contrib.auth.tokens import default_token_generator
-            from django.utils.encoding import force_bytes
-            from django.utils.http import urlsafe_base64_encode
+        # Always include a direct verification link in the response because
+        # some deployments (including production-mock) run without SMTP.
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
 
-            uid = urlsafe_base64_encode(force_bytes(str(user.pk)))
-            token = default_token_generator.make_token(user)
-            frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
-            data["dev_verification_url"] = (
-                f"{frontend_url}/verify-email?uid={uid}&token={token}"
-            )
+        uid = urlsafe_base64_encode(force_bytes(str(user.pk)))
+        token = default_token_generator.make_token(user)
+        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+        data["dev_verification_url"] = (
+            f"{frontend_url}/verify-email?uid={uid}&token={token}"
+        )
 
         return success_response(
             data=data,

@@ -80,6 +80,8 @@ class TestRegistration:
         assert response.data["data"]["email"] == "newuser@example.com"
         assert response.data["data"]["user_type"] == "SCHOOL"
         assert response.data["data"]["is_verified"] is False
+        assert "dev_verification_url" in response.data["data"]
+        assert "/verify-email?uid=" in response.data["data"]["dev_verification_url"]
 
         # Verify user exists in DB
         user = User.objects.get(email="newuser@example.com")
