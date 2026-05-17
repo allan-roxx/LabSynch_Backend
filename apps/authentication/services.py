@@ -68,11 +68,13 @@ def register_school_user(
         terms_accepted_at=timezone.now(),
     )
 
+    normalized_registration_number = (registration_number or "").strip() or None
+
     # Create school profile
     SchoolProfile.objects.create(
         user=user,
         school_name=school_name,
-        registration_number=registration_number,
+        registration_number=normalized_registration_number,
     )
 
     # Send verification email (non-blocking; failure logged, not raised)

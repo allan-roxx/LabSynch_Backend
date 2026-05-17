@@ -128,6 +128,42 @@ class TestRegistration:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.data["success"] is False
 
+    def test_blank_registration_number_is_allowed(self, api_client):
+        payload = {
+            "email": "noreg@example.com",
+            "password": "StrongPass123!",
+            "full_name": "No Reg",
+            "school_name": "No Reg School",
+            "registration_number": "",
+        }
+        response = api_client.post(self.url, payload, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        user = User.objects.get(email="noreg@example.com")
+        assert user.school_profile.registration_number is None
+
+    def test_multiple_blank_registration_numbers_are_allowed(self, api_client):
+        payload1 = {
+            "email": "blankreg1@example.com",
+            "password": "StrongPass123!",
+            "full_name": "Blank One",
+            "school_name": "School One",
+            "registration_number": "",
+        }
+        payload2 = {
+            "email": "blankreg2@example.com",
+            "password": "StrongPass123!",
+            "full_name": "Blank Two",
+            "school_name": "School Two",
+            "registration_number": "",
+        }
+
+        response1 = api_client.post(self.url, payload1, format="json")
+        response2 = api_client.post(self.url, payload2, format="json")
+
+        assert response1.status_code == status.HTTP_201_CREATED
+        assert response2.status_code == status.HTTP_201_CREATED
+
 
 # ==========================================================================
 # Login Tests

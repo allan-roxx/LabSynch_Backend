@@ -121,7 +121,8 @@ class SchoolProfile(BaseModel):
         max_length=100,
         unique=True,
         blank=True,
-        default="",
+        null=True,
+        default=None,
     )
     physical_address = models.TextField(blank=True, default="")
     county = models.CharField(max_length=100, blank=True, default="")

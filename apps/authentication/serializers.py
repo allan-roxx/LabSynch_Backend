@@ -20,10 +20,18 @@ class RegisterSerializer(serializers.Serializer):
         validators=[validate_password],
     )
     full_name = serializers.CharField(max_length=255)
-    phone_number = serializers.CharField(max_length=20, required=False, default="")
+    phone_number = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        default="",
+    )
     school_name = serializers.CharField(max_length=255)
     registration_number = serializers.CharField(
-        max_length=100, required=False, default=""
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        default="",
     )
     terms_accepted = serializers.BooleanField()
 

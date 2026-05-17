@@ -274,7 +274,7 @@ class SchoolProfileAdminViewSet(
             {
                 "ID": str(sp.id),
                 "School Name": sp.school_name,
-                "Reg No": sp.registration_number,
+                "Reg No": sp.registration_number or "",
                 "County": sp.county or "",
                 "Contact Person": sp.contact_person or "",
                 "Designation": sp.contact_designation or "",

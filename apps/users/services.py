@@ -77,6 +77,8 @@ def admin_update_school_profile(profile: SchoolProfile, data: dict) -> SchoolPro
     update_fields = ["updated_at"]
     for field, value in data.items():
         if field in allowed:
+            if field == "registration_number":
+                value = (value or "").strip() or None
             setattr(profile, field, value)
             update_fields.append(field)
     profile.save(update_fields=update_fields)
