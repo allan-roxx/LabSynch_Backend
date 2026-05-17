@@ -18,15 +18,19 @@ Usage::
 import logging
 from datetime import date, datetime
 from decimal import Decimal
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
 from apps.bookings.models import Booking, BookingItem, BookingStatus, CartItem
 from apps.damages.models import DamageReport, DamageSeverity, ResolutionStatus
-from apps.equipment.models import Equipment, EquipmentCategory, PricingRule, TransportZone
+from apps.equipment.models import Equipment, EquipmentCategory, EquipmentImage, PricingRule, TransportZone
 from apps.issuances.models import EquipmentIssuance, EquipmentReturn
 from apps.maintenance.models import MaintenanceSchedule, MaintenanceStatus, MaintenanceType
 from apps.payments.models import Payment, PaymentStatus
@@ -620,6 +624,17 @@ TRANSPORT_ZONES = [
     },
 ]
 
+
+CATEGORY_IMAGE_FILENAMES = {
+    "Glassware": "glassware.jpeg",
+    "Optical Instruments": "optical.jpg",
+    "Measuring Instruments": "measuring.webp",
+    "Chemical Equipment": "chemical.jpeg",
+    "Heating Equipment": "heating.webp",
+    "Safety Equipment": "chemical.jpeg",
+    "Consumables": "consumables.png",
+}
+
 # Pricing rules applied to every category.
 # (min_days, max_days, discount_percentage)
 PRICING_TIERS = [
@@ -853,6 +868,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             category_map = self._seed_categories()
             self._seed_equipment(category_map)
+            self._seed_equipment_images(category_map)
             self._seed_pricing_rules(category_map)
             zone_map = self._seed_transport_zones()
             self._seed_schools(zone_map)
@@ -963,6 +979,45 @@ class Command(BaseCommand):
                 action = "created" if created else "exists "
                 self.stdout.write(
                     f"  [{action}] {equipment.equipment_code}  {equipment.equipment_name}"
+                )
+
+    def _store_seed_image(self, filename):
+        source_path = Path(settings.BASE_DIR) / "images" / filename
+        if not source_path.exists():
+            raise FileNotFoundError(f"Seed image not found: {source_path}")
+
+        storage_path = f"equipment-seed-images/{filename}"
+        if not default_storage.exists(storage_path):
+            default_storage.save(storage_path, ContentFile(source_path.read_bytes()))
+
+        return default_storage.url(storage_path)
+
+    def _seed_equipment_images(self, category_map):
+        self.stdout.write("\nSeeding equipment images …")
+        for category_name, filename in CATEGORY_IMAGE_FILENAMES.items():
+            category = category_map.get(category_name)
+            if category is None:
+                self.stdout.write(f"  [skip] {category_name} category not found")
+                continue
+
+            image_url = self._store_seed_image(filename)
+            equipments = Equipment.objects.filter(category=category).order_by("equipment_name")
+
+            for equipment in equipments:
+                if equipment.images.exists():
+                    self.stdout.write(
+                        f"  [exists ] {equipment.equipment_code}  {equipment.equipment_name}"
+                    )
+                    continue
+
+                EquipmentImage.objects.create(
+                    equipment=equipment,
+                    image_url=image_url,
+                    display_order=0,
+                    is_primary=True,
+                )
+                self.stdout.write(
+                    f"  [created] {equipment.equipment_code}  {equipment.equipment_name} -> {filename}"
                 )
 
     def _seed_pricing_rules(self, category_map):
