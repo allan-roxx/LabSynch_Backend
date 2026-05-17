@@ -19,6 +19,19 @@ from .services import create_notification
 logger = logging.getLogger(__name__)
 
 
+def _send_email_or_log(*, subject: str, message: str, recipient_list: list[str]) -> None:
+    """Best-effort email delivery; notification creation must not depend on SMTP health."""
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=recipient_list,
+        )
+    except Exception as exc:
+        logger.warning("Email send skipped/failed for %s: %s", recipient_list, str(exc))
+
+
 @shared_task(name="notifications.send_booking_confirmation", bind=True, max_retries=3)
 def send_booking_confirmation(self, booking_id: str):
     """Email the school user when a new booking is created."""
@@ -46,13 +59,6 @@ def send_booking_confirmation(self, booking_id: str):
             f"Please complete payment via M-Pesa to confirm your booking."
         )
 
-        send_mail(
-            subject=f"LabSynch — Booking Received ({booking.booking_reference})",
-            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-        )
-
         create_notification(
             user=user,
             notification_type=NotificationType.BOOKING_CREATED,
@@ -61,13 +67,19 @@ def send_booking_confirmation(self, booking_id: str):
             booking_id=booking.id,
         )
 
+        _send_email_or_log(
+            subject=f"LabSynch — Booking Received ({booking.booking_reference})",
+            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
+            recipient_list=[user.email],
+        )
+
         logger.info(
             "Booking confirmation sent for %s to %s",
             booking.booking_reference, user.email,
         )
     except Exception as exc:
         logger.error(
-            "Failed to send booking confirmation for %s: %s",
+            "Failed to process booking confirmation for %s: %s",
             booking_id, str(exc), exc_info=True,
         )
         raise self.retry(exc=exc, countdown=60)
@@ -96,13 +108,6 @@ def send_payment_receipt(self, payment_id: str):
             f"Our team will contact you to arrange equipment pickup."
         )
 
-        send_mail(
-            subject=f"LabSynch — Payment Confirmed ({payment.transaction_ref})",
-            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-        )
-
         create_notification(
             user=user,
             notification_type=NotificationType.PAYMENT_RECEIVED,
@@ -112,13 +117,19 @@ def send_payment_receipt(self, payment_id: str):
             payment_id=payment.id,
         )
 
+        _send_email_or_log(
+            subject=f"LabSynch — Payment Confirmed ({payment.transaction_ref})",
+            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
+            recipient_list=[user.email],
+        )
+
         logger.info(
             "Payment receipt sent for %s to %s",
             payment.transaction_ref, user.email,
         )
     except Exception as exc:
         logger.error(
-            "Failed to send payment receipt for %s: %s",
+            "Failed to process payment receipt for %s: %s",
             payment_id, str(exc), exc_info=True,
         )
         raise self.retry(exc=exc, countdown=60)
@@ -143,13 +154,6 @@ def send_equipment_issued_notification(self, issuance_id: str):
             f"Failure to return on time will result in overdue charges."
         )
 
-        send_mail(
-            subject=f"LabSynch — Equipment Issued ({booking.booking_reference})",
-            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-        )
-
         create_notification(
             user=user,
             notification_type=NotificationType.EQUIPMENT_ISSUED,
@@ -159,13 +163,19 @@ def send_equipment_issued_notification(self, issuance_id: str):
             issuance_id=issuance.id,
         )
 
+        _send_email_or_log(
+            subject=f"LabSynch — Equipment Issued ({booking.booking_reference})",
+            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
+            recipient_list=[user.email],
+        )
+
         logger.info(
             "Equipment issued notification sent for %s to %s",
             booking.booking_reference, user.email,
         )
     except Exception as exc:
         logger.error(
-            "Failed to send equipment issued notification for %s: %s",
+            "Failed to process equipment issued notification for %s: %s",
             issuance_id, str(exc), exc_info=True,
         )
         raise self.retry(exc=exc, countdown=60)
@@ -248,13 +258,6 @@ def send_equipment_returned_notification(self, booking_id: str):
             f"{penalty_line}"
         )
 
-        send_mail(
-            subject=f"LabSynch — Equipment Returned ({booking.booking_reference})",
-            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-        )
-
         create_notification(
             user=user,
             notification_type=NotificationType.EQUIPMENT_RETURNED,
@@ -263,13 +266,19 @@ def send_equipment_returned_notification(self, booking_id: str):
             booking_id=booking.id,
         )
 
+        _send_email_or_log(
+            subject=f"LabSynch — Equipment Returned ({booking.booking_reference})",
+            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
+            recipient_list=[user.email],
+        )
+
         logger.info(
             "Equipment returned notification sent for %s to %s",
             booking.booking_reference, user.email,
         )
     except Exception as exc:
         logger.error(
-            "Failed to send equipment returned notification for %s: %s",
+            "Failed to process equipment returned notification for %s: %s",
             booking_id, str(exc), exc_info=True,
         )
         raise self.retry(exc=exc, countdown=60)
@@ -289,13 +298,6 @@ def send_booking_cancelled_notification(self, booking_id: str):
             f"If you did not request this cancellation, please contact support."
         )
 
-        send_mail(
-            subject=f"LabSynch — Booking Cancelled ({booking.booking_reference})",
-            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-        )
-
         create_notification(
             user=user,
             notification_type=NotificationType.BOOKING_CANCELLED,
@@ -304,13 +306,19 @@ def send_booking_cancelled_notification(self, booking_id: str):
             booking_id=booking.id,
         )
 
+        _send_email_or_log(
+            subject=f"LabSynch — Booking Cancelled ({booking.booking_reference})",
+            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
+            recipient_list=[user.email],
+        )
+
         logger.info(
             "Booking cancelled notification sent for %s to %s",
             booking.booking_reference, user.email,
         )
     except Exception as exc:
         logger.error(
-            "Failed to send booking cancelled notification for %s: %s",
+            "Failed to process booking cancelled notification for %s: %s",
             booking_id, str(exc), exc_info=True,
         )
         raise self.retry(exc=exc, countdown=60)
@@ -331,13 +339,6 @@ def send_penalty_cleared_notification(self, booking_id: str):
             f"You can now make new bookings."
         )
 
-        send_mail(
-            subject=f"LabSynch — Penalty Cleared ({booking.booking_reference})",
-            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-        )
-
         create_notification(
             user=user,
             notification_type=NotificationType.PENALTY_CLEARED,
@@ -346,13 +347,19 @@ def send_penalty_cleared_notification(self, booking_id: str):
             booking_id=booking.id,
         )
 
+        _send_email_or_log(
+            subject=f"LabSynch — Penalty Cleared ({booking.booking_reference})",
+            message=f"Hello {user.full_name},\n\n{body}\n\n— The LabSynch Team",
+            recipient_list=[user.email],
+        )
+
         logger.info(
             "Penalty cleared notification sent for %s to %s",
             booking.booking_reference, user.email,
         )
     except Exception as exc:
         logger.error(
-            "Failed to send penalty cleared notification for %s: %s",
+            "Failed to process penalty cleared notification for %s: %s",
             booking_id, str(exc), exc_info=True,
         )
         raise self.retry(exc=exc, countdown=60)
