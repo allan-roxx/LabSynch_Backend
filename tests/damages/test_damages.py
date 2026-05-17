@@ -7,6 +7,7 @@ from apps.bookings.models import Booking, BookingItem, BookingStatus
 from apps.damages.models import DamageReport, DamageSeverity, ResolutionStatus
 from apps.equipment.models import Equipment, EquipmentCategory
 from apps.issuances.models import EquipmentIssuance, EquipmentReturn
+from apps.users.models import LiabilityStatus
 from tests.factories import SchoolProfileFactory, UserFactory
 
 
@@ -103,3 +104,62 @@ class TestDamageReports:
         report.refresh_from_db()
         assert report.resolution_status == ResolutionStatus.CHARGED
         assert report.repair_cost == 250.00
+
+    def test_school_user_can_settle_own_damage_liability(self, api_client, setup_data):
+        school = setup_data["school"]
+        booking_item = setup_data["booking_item"]
+        equipment_return = setup_data["equipment_return"]
+
+        report = DamageReport.objects.create(
+            equipment_return=equipment_return,
+            booking_item=booking_item,
+            reported_by=setup_data["admin"],
+            quantity_damaged=1,
+            severity=DamageSeverity.MODERATE,
+            description="Cracked eyepiece",
+            repair_cost="300.00",
+            amount_paid="0.00",
+            resolution_status=ResolutionStatus.CHARGED,
+        )
+
+        school_profile = equipment_return.booking.school_profile
+        school_profile.liability_status = LiabilityStatus.HAS_OUTSTANDING
+        school_profile.save(update_fields=["liability_status", "updated_at"])
+
+        res = api_client.post(reverse("auth-login"), {"email": school.email, "password": "TestPass123!"})
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['data']['tokens']['access']}")
+
+        settle_url = reverse("damage-settle", args=[report.id])
+        settle_res = api_client.post(settle_url, {"amount_paid": "300.00"}, format="json")
+
+        assert settle_res.status_code == status.HTTP_200_OK
+        report.refresh_from_db()
+        school_profile.refresh_from_db()
+
+        assert report.resolution_status == ResolutionStatus.PAID
+        assert float(report.amount_paid) == 300.00
+        assert school_profile.liability_status == LiabilityStatus.CLEAR
+
+    def test_school_user_cannot_settle_other_school_liability(self, api_client, setup_data):
+        other_school = UserFactory(email="other_school@example.com", user_type="SCHOOL")
+        SchoolProfileFactory(user=other_school)
+
+        report = DamageReport.objects.create(
+            equipment_return=setup_data["equipment_return"],
+            booking_item=setup_data["booking_item"],
+            reported_by=setup_data["admin"],
+            quantity_damaged=1,
+            severity=DamageSeverity.MINOR,
+            description="Minor scratch",
+            repair_cost="120.00",
+            amount_paid="0.00",
+            resolution_status=ResolutionStatus.CHARGED,
+        )
+
+        res = api_client.post(reverse("auth-login"), {"email": other_school.email, "password": "TestPass123!"})
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['data']['tokens']['access']}")
+
+        settle_url = reverse("damage-settle", args=[report.id])
+        settle_res = api_client.post(settle_url, {"amount_paid": "120.00"}, format="json")
+
+        assert settle_res.status_code == status.HTTP_404_NOT_FOUND

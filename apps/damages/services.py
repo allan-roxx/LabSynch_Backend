@@ -3,6 +3,7 @@ Services for Damage Reports.
 """
 
 import logging
+from decimal import Decimal
 
 from django.db import transaction
 
@@ -118,6 +119,64 @@ def resolve_damage_report(
     )
 
     # Recalculate school liability
+    school_profile = damage_report.equipment_return.booking.school_profile
+    _update_school_liability(school_profile)
+
+    return damage_report
+
+
+@transaction.atomic
+def settle_damage_report_by_school(
+    damage_report: DamageReport,
+    school_user,
+    amount_paid=None,
+) -> DamageReport:
+    """
+    School user settles a damage liability from their own account.
+    Keeps admin resolve workflow intact while enabling self-service settlement.
+    """
+    if damage_report.equipment_return.booking.school_profile.user_id != school_user.id:
+        raise ValidationError({"detail": "You can only settle liabilities for your own school."})
+
+    if damage_report.resolution_status in [ResolutionStatus.WAIVED, ResolutionStatus.RESOLVED]:
+        raise ValidationError({"resolution_status": "This damage report is already closed."})
+
+    if damage_report.repair_cost is None or damage_report.repair_cost <= 0:
+        raise ValidationError({"repair_cost": "Liability cannot be settled before repair cost assessment."})
+
+    outstanding = Decimal(str(damage_report.amount_outstanding or 0))
+    if outstanding <= 0:
+        damage_report.resolution_status = ResolutionStatus.PAID
+        damage_report.save(update_fields=["resolution_status", "updated_at"])
+        school_profile = damage_report.equipment_return.booking.school_profile
+        _update_school_liability(school_profile)
+        return damage_report
+
+    pay_amount = outstanding if amount_paid is None else Decimal(str(amount_paid))
+    if pay_amount <= 0:
+        raise ValidationError({"amount_paid": "Payment amount must be greater than zero."})
+
+    new_paid_total = Decimal(str(damage_report.amount_paid or 0)) + pay_amount
+    if new_paid_total >= damage_report.repair_cost:
+        damage_report.amount_paid = damage_report.repair_cost
+        damage_report.resolution_status = ResolutionStatus.PAID
+    else:
+        damage_report.amount_paid = new_paid_total
+        # Still outstanding: keep as charged liability.
+        damage_report.resolution_status = ResolutionStatus.CHARGED
+
+    damage_report.save(update_fields=["amount_paid", "resolution_status", "updated_at"])
+
+    log_action(
+        action=AuditLog.Action.PAYMENT,
+        instance=damage_report,
+        actor=school_user,
+        changes={
+            "amount_paid": str(pay_amount),
+            "resolution_status": damage_report.resolution_status,
+        },
+    )
+
     school_profile = damage_report.equipment_return.booking.school_profile
     _update_school_liability(school_profile)
 

@@ -57,3 +57,7 @@ class DamageReportResolveSerializer(serializers.Serializer):
     resolution_status = serializers.ChoiceField(choices=ResolutionStatus.choices)
     repair_cost = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+
+
+class DamageReportSettleSerializer(serializers.Serializer):
+    amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)

@@ -1,0 +1,237 @@
+
+<style>
+#erd { width: 100%; overflow-x: auto; }
+#erd svg { display: block; }
+</style>
+<div id="erd"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+        fontSize: '24px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+    primaryColor: dark ? '#2c2c2a' : '#f1efe8',
+    primaryBorderColor: dark ? '#5f5e5a' : '#b4b2a9',
+    primaryTextColor: dark ? '#c2c0b6' : '#3d3d3a',
+    edgeLabelBackground: dark ? '#2c2c2a' : '#ffffff',
+    attributeBackgroundColorEven: dark ? '#2c2c2a' : '#ffffff',
+    attributeBackgroundColorOdd: dark ? '#1e1e1c' : '#f8f7f4',
+  },
+});
+
+const diagram = `erDiagram
+    USER {
+        uuid id PK
+        string email
+        string full_name
+        string user_type
+        boolean is_verified
+    }
+    SCHOOL_PROFILE {
+        uuid id PK
+        uuid user_id FK
+        string school_name
+        string registration_number
+        string account_status
+        string liability_status
+    }
+    TRANSPORT_ZONE {
+        uuid id PK
+        string zone_name
+        decimal base_transport_fee
+        boolean is_active
+    }
+    EQUIPMENT_CATEGORY {
+        uuid id PK
+        string category_name
+        string description
+        int display_order
+    }
+    EQUIPMENT {
+        uuid id PK
+        uuid category_id FK
+        string equipment_name
+        string equipment_code
+        int total_quantity
+        int available_quantity
+        decimal unit_price_per_day
+        string condition
+        boolean is_active
+        boolean is_consumable
+        decimal overdue_penalty_rate
+        uuid transport_zone_id FK
+    }
+    EQUIPMENT_IMAGE {
+        uuid id PK
+        uuid equipment_id FK
+        string image_url
+        int display_order
+        boolean is_primary
+    }
+    PRICING_RULE {
+        uuid id PK
+        uuid category_id FK
+        int min_days
+        int max_days
+        decimal discount_percentage
+        date effective_from
+        date effective_to
+        boolean is_active
+    }
+    CART {
+        uuid id PK
+        uuid user_id FK
+        date pickup_date
+        date return_date
+        string special_instructions
+        boolean requires_transport
+    }
+    CART_ITEM {
+        uuid id PK
+        uuid cart_id FK
+        uuid equipment_id FK
+        int quantity
+    }
+    BOOKING {
+        uuid id PK
+        string booking_reference
+        uuid school_profile_id FK
+        date pickup_date
+        date return_date
+        string status
+        decimal total_amount
+        boolean requires_transport
+        decimal transport_cost
+        decimal overdue_penalty
+        boolean penalty_cleared
+        decimal penalty_carried_forward
+    }
+    BOOKING_ITEM {
+        uuid id PK
+        uuid booking_id FK
+        uuid equipment_id FK
+        int quantity
+        decimal unit_price
+        decimal subtotal
+        decimal personnel_cost
+    }
+    PAYMENT {
+        uuid id PK
+        string transaction_ref
+        uuid booking_id FK
+        decimal amount_paid
+        string payment_method
+        string payment_status
+        string mpesa_transaction_id
+        string mpesa_phone_number
+        string mpesa_checkout_request_id
+    }
+    EQUIPMENT_ISSUANCE {
+        uuid id PK
+        uuid booking_id FK
+        uuid issued_by_id FK
+        uuid received_by_id FK
+        string delivery_status
+        string issue_notes
+    }
+    EQUIPMENT_RETURN {
+        uuid id PK
+        uuid booking_id FK
+        uuid received_by_id FK
+        uuid returned_by_id FK
+        boolean has_damage
+        string return_notes
+    }
+    DAMAGE_REPORT {
+        uuid id PK
+        uuid equipment_return_id FK
+        uuid booking_item_id FK
+        uuid reported_by_id FK
+        int quantity_damaged
+        string severity
+        decimal repair_cost
+        decimal amount_paid
+        string resolution_status
+    }
+    MAINTENANCE_SCHEDULE {
+        uuid id PK
+        uuid equipment_id FK
+        string maintenance_type
+        string status
+        date scheduled_date
+        date completed_date
+        decimal cost
+    }
+    NOTIFICATION {
+        uuid id PK
+        uuid user_id FK
+        string notification_type
+        string title
+        string body
+        boolean is_read
+        uuid booking_id
+        uuid payment_id
+        uuid issuance_id
+    }
+
+    USER ||--o| SCHOOL_PROFILE : has
+    TRANSPORT_ZONE ||--o{ SCHOOL_PROFILE : serves
+    EQUIPMENT_CATEGORY ||--o{ EQUIPMENT : groups
+    TRANSPORT_ZONE ||--o{ EQUIPMENT : prices_delivery_for
+    EQUIPMENT ||--o{ EQUIPMENT_IMAGE : has
+    EQUIPMENT_CATEGORY ||--o{ PRICING_RULE : has
+    USER ||--o| CART : owns
+    CART ||--o{ CART_ITEM : contains
+    EQUIPMENT ||--o{ CART_ITEM : referenced_by
+    SCHOOL_PROFILE ||--o{ BOOKING : places
+    BOOKING ||--o{ BOOKING_ITEM : contains
+    EQUIPMENT ||--o{ BOOKING_ITEM : reserved_as
+    BOOKING ||--o{ PAYMENT : paid_by
+    BOOKING ||--o| EQUIPMENT_ISSUANCE : issued_for
+    USER ||--o{ EQUIPMENT_ISSUANCE : issues
+    USER ||--o{ EQUIPMENT_ISSUANCE : receives
+    BOOKING ||--o| EQUIPMENT_RETURN : returned_as
+    USER ||--o{ EQUIPMENT_RETURN : receives
+    USER ||--o{ EQUIPMENT_RETURN : returns
+    EQUIPMENT_RETURN ||--o{ DAMAGE_REPORT : may_create
+    BOOKING_ITEM ||--o{ DAMAGE_REPORT : damaged_line_item
+    USER ||--o{ DAMAGE_REPORT : reports
+    EQUIPMENT ||--o{ MAINTENANCE_SCHEDULE : maintained_by
+    USER ||--o{ NOTIFICATION : receives
+`;
+
+const { svg } = await mermaid.render('erd-svg', diagram);
+document.getElementById('erd').innerHTML = svg;
+
+document.querySelectorAll('#erd svg .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+
+document.querySelectorAll('#erd svg .row-rect-odd path, #erd svg .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>

@@ -5,9 +5,10 @@ Views for Damages app.
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 
 from common.exports import export_csv, export_pdf
-from common.permissions import IsAdminUser
+from common.permissions import IsAdminUser, IsSchoolUser
 from rest_framework.exceptions import ValidationError
 from common.utils import success_response
 from .models import DamageReport
@@ -15,8 +16,9 @@ from .serializers import (
     DamageReportCreateSerializer,
     DamageReportReadSerializer,
     DamageReportResolveSerializer,
+    DamageReportSettleSerializer,
 )
-from .services import create_damage_report, resolve_damage_report
+from .services import create_damage_report, resolve_damage_report, settle_damage_report_by_school
 
 
 @extend_schema_view(
@@ -32,12 +34,29 @@ class DamageReportViewSet(viewsets.ModelViewSet):
     CRUD for Damage Reports.
     Strictly restricted to ADMIN users.
     """
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
     queryset = DamageReport.objects.select_related(
         "equipment_return", 
+        "equipment_return__booking",
+        "equipment_return__booking__school_profile",
+        "equipment_return__booking__school_profile__user",
         "booking_item", 
+        "booking_item__equipment",
         "reported_by"
     )
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy", "resolve", "export"]:
+            return [IsAuthenticated(), IsAdminUser()]
+        if self.action == "settle":
+            return [IsAuthenticated(), IsSchoolUser()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if getattr(self.request.user, "user_type", None) == "ADMIN":
+            return queryset
+        return queryset.filter(equipment_return__booking__school_profile__user=self.request.user)
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -87,6 +106,30 @@ class DamageReportViewSet(viewsets.ModelViewSet):
         return success_response(
             data=read_serializer.data,
             message="Damage report resolution updated.",
+            status_code=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        request=DamageReportSettleSerializer,
+        responses={200: DamageReportReadSerializer},
+        summary="School settles own damage liability",
+    )
+    @action(detail=True, methods=["post"])
+    def settle(self, request, pk=None):
+        report = self.get_object()
+        serializer = DamageReportSettleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        updated_report = settle_damage_report_by_school(
+            damage_report=report,
+            school_user=request.user,
+            amount_paid=serializer.validated_data.get("amount_paid"),
+        )
+
+        read_serializer = DamageReportReadSerializer(updated_report)
+        return success_response(
+            data=read_serializer.data,
+            message="Liability payment recorded successfully.",
             status_code=status.HTTP_200_OK,
         )
 
